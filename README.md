@@ -2,6 +2,6 @@
 Research Project for CPSC 532S
 
 Todo:
-James: Datasets, model
-Aritro: model
-Jacques: Data processing
+James: Datasets, model <br />
+Aritro: model,<br />
+Jacques: Data processing <br />
