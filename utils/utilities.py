@@ -315,7 +315,6 @@ class TargetProcessor(object):
             # Note
             if attribute_list[0] in ['note_on', 'note_off']:
                 """E.g. attribute_list: ['note_on', 'channel=0', 'note=41', 'velocity=0', 'time=10']"""
-                print(attribute_list)
                 midi_note = int(attribute_list[2].split('=')[1])
                 velocity = int(attribute_list[3].split('=')[1])
 
