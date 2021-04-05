@@ -9,6 +9,7 @@ import librosa
 import logging
 import os.path
 
+from cfp import feature_extraction, create_batches
 from utilities import (create_folder, float32_to_int16, create_logging, 
     get_filename, read_metadata, read_midi, read_maps_midi)
 import config
@@ -64,6 +65,11 @@ def pack_maestro_dataset_to_hdf5(args):
         packed_hdf5_path = os.path.join(waveform_hdf5s_dir, '{}.h5'.format(
             os.path.splitext(meta_dict['audio_filename'][n])[0]))
 
+        Z, tfrL0, tfrLF, tfrLQ, t, cenf, f = feature_extraction(audio_path)
+        feature = np.array([Z, tfrL0, tfrLF, tfrLQ])
+        feature = np.transpose(feature, axes=(2, 1, 0))
+        # print("feature ", feature.shape)
+
         create_folder(os.path.dirname(packed_hdf5_path))
 
         with h5py.File(packed_hdf5_path, 'w') as hf:
@@ -77,7 +83,7 @@ def pack_maestro_dataset_to_hdf5(args):
 
             hf.create_dataset(name='midi_event', data=[e.encode() for e in midi_dict['midi_event']], dtype='S100')
             hf.create_dataset(name='midi_event_time', data=midi_dict['midi_event_time'], dtype=np.float32)
-            hf.create_dataset(name='waveform', data=float32_to_int16(audio), dtype=np.int16)
+            hf.create_dataset(name='feature', data=feature)
         
             logging.info('Write hdf5 to {}'.format(packed_hdf5_path))
     logging.info('Time: {:.3f} s'.format(time.time() - feature_time))

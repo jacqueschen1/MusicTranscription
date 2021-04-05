@@ -199,18 +199,34 @@ def train(args):
 
     for batch_data_dict in train_loader:
 
-        print(batch_data_dict['waveform'].shape)
-        Z, tfrL0, tfrLF, tfrLQ, t, cenf, f = feature_extraction(batch_data_dict['waveform'][0])
-        feature = np.array([Z, tfrL0, tfrLF, tfrLQ])
-        print(feature.shape)
-        feature = np.transpose(feature, axes=(2, 1, 0))
-        print(feature.shape)
-        features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
-        print(len(features))
-        print(features[0].shape)
-        # np.save(open('/content/features', 'wb+'), features[0])
+        print("wave shape", batch_data_dict['feature'][0].shape)
+        print(len(batch_data_dict['feature']))
+        features_batch = torch.empty(0,256,384,2)
+        time_bgn = time.time()
+        for i in range(len(batch_data_dict['feature'])):
+          # print("wave shape", batch_data_dict['waveform'][i].shape)
+          # time_bgn = time.time()
+          # Z, tfrL0, tfrLF, tfrLQ, t, cenf, f = feature_extraction(batch_data_dict['waveform'][i])
+          # feature = np.array([Z, tfrL0, tfrLF, tfrLQ])
+          # print("cfp time 1 ", '{:.3f} s'.format(time_end-time_bgn))
+          # # print(feature.shape)
+          # feature = np.transpose(feature, axes=(2, 1, 0))
+          # # print(feature.shape)
+          feature = batch_data_dict['feature'][i]
+          print(feature.shape)
+          features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
+          # time_end = time.time()
+          # print("cfp time 2 ", '{:.3f} s'.format(time_end-time_bgn))
+          print(len(features))
+          print(features[0].shape)
+          features_batch = torch.cat((features_batch, torch.from_numpy(features[0])))
+          print(features_batch.shape)
+        time_end = time.time()
+        print("cfp time ", '{:.3f} s'.format(time_end-time_bgn))
+        np.save(open('/content/fseatures', 'wb+'), features_batch[0])
+        break;
         print(batch_data_dict.keys())
-        break
+      
         # with wave.open("/content/sound1.wav", "w") as f:
         #     # 2 Channels.
         #     f.setnchannels(2)
@@ -220,7 +236,7 @@ def train(args):
         #     f.writeframes(batch_data_dict['waveform'].tobytes())
         # break
         
-        # # Evaluation 
+        # Evaluation 
         # if iteration % 5000 == 0:# and iteration > 0:
         #     logging.info('------------------------------------')
         #     logging.info('Iteration: {}'.format(iteration))

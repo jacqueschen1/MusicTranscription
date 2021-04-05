@@ -222,9 +222,13 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
             'velocity_output': (batch_size, time_steps, classes_num)
           }
         """
-
+        time_bgn = time.time()
         x = self.spectrogram_extractor(input)   # (batch_size, 1, time_steps, freq_bins)
         x = self.logmel_extractor(x)    # (batch_size, 1, time_steps, mel_bins)
+        time_end = time.time()
+
+        print("mel time ", '{:.3f} s'.format(time_end-time_bgn))
+        print(x.shape)
 
         x = x.transpose(1, 3)
         x = self.bn0(x)

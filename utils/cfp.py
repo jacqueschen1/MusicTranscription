@@ -168,7 +168,7 @@ def parallel_extract(x, samples, MaxSample, fr, fs, Hop, h, fc, tc, g, NumPerOct
     return tmpL0, tmpLF, tmpLQ, tmpZ, f, q, t, CenFreq
     
 def feature_extraction(
-        x,
+        filename,
         hop=0.02, # in seconds
         w=7939,
         fr=2.0,
@@ -179,10 +179,10 @@ def feature_extraction(
         Down_fs=44100
     ):
                        
-    # x, fs = sf.read(filename)
-    # if len(x.shape)>1:
-    #    x = np.mean(x, axis = 1)
-    # x = signal.resample_poly(x, Down_fs, fs)
+    x, fs = sf.read(filename)
+    if len(x.shape)>1:
+       x = np.mean(x, axis = 1)
+    x = signal.resample_poly(x, Down_fs, fs)
     fs = Down_fs # sampling frequency
     Hop = round(Down_fs*hop)
     x = x.astype('float32')
@@ -191,7 +191,7 @@ def feature_extraction(
 
     MaxSample = 2000
     samples = np.floor(len(x)/Hop).astype('int')
-    print("# Sample: ", samples)
+    # print("# Sample: ", samples)
     if samples > MaxSample:
         tmpL0, tmpLF, tmpLQ, tmpZ, f, q, t, CenFreq = parallel_extract(x, samples, MaxSample, fr, fs, Hop, h, fc, tc, g, NumPerOctave)
 

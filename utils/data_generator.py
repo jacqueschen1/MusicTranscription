@@ -80,24 +80,24 @@ class MaestroDataset(object):
 
         # Load hdf5
         with h5py.File(hdf5_path, 'r') as hf:
-            start_sample = int(start_time * self.sample_rate)
-            end_sample = start_sample + self.segment_samples
+            start_sample = int(start_time * self.frames_per_second)
+            end_sample = start_sample + (self.segment_seconds * self.frames_per_second)
 
-            if end_sample >= hf['waveform'].shape[0]:
+            if end_sample >= hf['feature'].shape[0]:
                 start_sample -= self.segment_samples
                 end_sample -= self.segment_samples
 
-            waveform = int16_to_float32(hf['waveform'][start_sample : end_sample])
+            feature = hf['feature'][start_sample : end_sample]
 
-            if self.augmentor:
-                waveform = self.augmentor.augment(waveform)
+            # if self.augmentor:
+            #     waveform = self.augmentor.augment(waveform)
 
-            if note_shift != 0:
-                """Augment pitch"""
-                waveform = librosa.effects.pitch_shift(waveform, self.sample_rate, 
-                    note_shift, bins_per_octave=12)
+            # if note_shift != 0:
+            #     """Augment pitch"""
+            #     waveform = librosa.effects.pitch_shift(waveform, self.sample_rate, 
+            #         note_shift, bins_per_octave=12)
 
-            data_dict['waveform'] = waveform
+            data_dict['feature'] = feature
 
             midi_events = [e.decode() for e in hf['midi_event'][:]]
             midi_events_time = hf['midi_event_time'][:]
