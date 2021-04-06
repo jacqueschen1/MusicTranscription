@@ -105,7 +105,7 @@ class AcousticModelCRnn8Dropout(nn.Module):
     def __init__(self, classes_num, midfeat, momentum):
         super(AcousticModelCRnn8Dropout, self).__init__()
 
-        self.conv_block1 = ConvBlock(in_channels=1, out_channels=48, momentum=momentum)
+        self.conv_block1 = ConvBlock(in_channels=2, out_channels=48, momentum=momentum)
         self.conv_block2 = ConvBlock(in_channels=48, out_channels=64, momentum=momentum)
         self.conv_block3 = ConvBlock(in_channels=64, out_channels=96, momentum=momentum)
         self.conv_block4 = ConvBlock(in_channels=96, out_channels=128, momentum=momentum)
@@ -144,7 +144,9 @@ class AcousticModelCRnn8Dropout(nn.Module):
         x = self.conv_block4(x, pool_size=(1, 2), pool_type='avg')
         x = F.dropout(x, p=0.2, training=self.training)
 
+        print("post conv", x.shape)
         x = x.transpose(1, 2).flatten(2)
+        print("post flatten", x.shape)
         x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=True)
         
@@ -161,7 +163,7 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         sample_rate = 16000
         window_size = 2048
         hop_size = sample_rate // frames_per_second
-        mel_bins = 229
+        mel_bins = 384
         fmin = 30
         fmax = sample_rate // 2
 
@@ -172,7 +174,7 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         amin = 1e-10
         top_db = None
 
-        midfeat = 1792
+        midfeat = 3072
         momentum = 0.01
 
         # # Spectrogram extractor
@@ -233,11 +235,12 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         
         print(x.shape)
 
-        x = x.transpose(1, 3)
+        x = x.transpose(1, 2)
 
         print(x.shape)
         x = self.bn0(x)
         x = x.transpose(1, 3)
+        print("post", x.shape)
 
         frame_output = self.frame_model(x)  # (batch_size, time_steps, classes_num)
         reg_onset_output = self.reg_onset_model(x)  # (batch_size, time_steps, classes_num)
