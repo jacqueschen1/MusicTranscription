@@ -113,17 +113,23 @@ class AcousticModelCRnn8Dropout(nn.Module):
         self.fc5 = nn.Linear(midfeat, 768, bias=False)
         self.bn5 = nn.BatchNorm1d(768, momentum=momentum)
 
-        self.gru = nn.GRU(input_size=768, hidden_size=256, num_layers=2, 
-            bias=True, batch_first=True, dropout=0., bidirectional=True)
+        hyparams = Map()
+        hyparams['hidden_size'] = 24
+        hyparams['num_heads'] = 8
+        hyparams['block_length'] = 2048
+        hyparams['attn_type'] = "local_1d"
+        hyparams['filter_size'] = 24
+        hyparams['dropout'] = 0
+        self.attn = Attn(hyparams)
 
-        self.fc = nn.Linear(512, classes_num, bias=True)
+        self.fc = nn.Linear(768, classes_num, bias=True)
         
         self.init_weight()
 
     def init_weight(self):
         init_layer(self.fc5)
         init_bn(self.bn5)
-        init_gru(self.gru)
+        # init_gru(self.gru)
         init_layer(self.fc)
 
     def forward(self, input):
@@ -145,12 +151,18 @@ class AcousticModelCRnn8Dropout(nn.Module):
         x = F.dropout(x, p=0.2, training=self.training)
 
         print("post conv", x.shape)
-        x = x.transpose(1, 2).flatten(2)
+        # x = x.transpose(1, 2).flatten(2)
+        x = x.transpose(1, 3).flatten(2)
         print("post flatten", x.shape)
-        x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
+        x = x.transpose(1, 2)
+        print("post flatten", x.shape)
+        # x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=True)
         
-        (x, _) = self.gru(x)
+        # (x, _) = self.gru(x)
+        print("post fc", x.shape)
+        x = self.attn(x)
+        print("post attn, ", x.shape)
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
         output = torch.sigmoid(self.fc(x))
         return output
@@ -367,3 +379,130 @@ class Note_pedal(nn.Module):
         full_output_dict.update(note_output_dict)
         full_output_dict.update(pedal_output_dict)
         return full_output_dict
+
+class DecoderLayer(nn.Module):
+    """Implements a single layer of an unconditional ImageTransformer"""
+    def __init__(self, hparams):
+        super().__init__()
+        self.attn = Attn(hparams)
+        self.hparams = hparams
+        self.dropout = nn.Dropout(p=hparams.dropout)
+        self.layernorm_attn = nn.LayerNorm([self.hparams.hidden_size], eps=1e-6, elementwise_affine=True)
+        self.layernorm_ffn = nn.LayerNorm([self.hparams.hidden_size], eps=1e-6, elementwise_affine=True)
+        self.ffn = nn.Sequential(nn.Linear(self.hparams.hidden_size, self.hparams.filter_size, bias=True),
+                                 nn.ReLU(),
+                                 nn.Linear(self.hparams.filter_size, self.hparams.hidden_size, bias=True))
+
+    def preprocess_(self, X):
+        return X
+
+    # Takes care of the "postprocessing" from tensorflow code with the layernorm and dropout
+    def forward(self, X):
+        X = self.preprocess_(X)
+        y = self.attn(X)
+        print("attn done")
+        X = self.layernorm_attn(self.dropout(y) + X)
+        y = self.ffn(self.preprocess_(X))
+        X = self.layernorm_ffn(self.dropout(y) + X)
+        return X
+
+class Attn(nn.Module):
+    def __init__(self, hparams):
+        super().__init__()
+        self.hparams = hparams
+        self.kd = self.hparams.hidden_size
+        self.vd = self.hparams.hidden_size
+        # self.q_dense = nn.Linear(self.hparams.hidden_size, self.kd, bias=False)
+        # self.k_dense = nn.Linear(self.hparams.hidden_size, self.kd, bias=False)
+        # self.v_dense = nn.Linear(self.hparams.hidden_size, self.vd, bias=False)
+        # self.output_dense = nn.Linear(self.vd, self.hparams.hidden_size, bias=False)
+        assert self.kd % self.hparams.num_heads == 0
+        assert self.vd % self.hparams.num_heads == 0
+
+    def dot_product_attention(self, q, k, v, bias=None):
+        logits = torch.einsum("...kd,...qd->...qk", k, q)
+        if bias is not None:
+            logits += bias
+        weights = F.softmax(logits, dim=-1)
+        return weights @ v
+
+    def forward(self, X):
+        q = X
+        k = X
+        v = X
+        # Split to shape [batch_size, num_heads, len, depth / num_heads]
+        q = q.view(q.shape[:-1] + (self.hparams.num_heads, self.kd // self.hparams.num_heads)).permute([0, 2, 1, 3])
+        print(q.shape)
+        k = k.view(k.shape[:-1] + (self.hparams.num_heads, self.kd // self.hparams.num_heads)).permute([0, 2, 1, 3])
+        v = v.view(v.shape[:-1] + (self.hparams.num_heads, self.vd // self.hparams.num_heads)).permute([0, 2, 1, 3])
+        q *= (self.kd // self.hparams.num_heads) ** (-0.5)
+
+        print("helppppp")
+
+        if self.hparams.attn_type == "global":
+            bias = -1e9 * torch.triu(torch.ones(X.shape[1], X.shape[1]), 1).to(X.device)
+            result = self.dot_product_attention(q, k, v, bias=bias)
+        elif self.hparams.attn_type == "local_1d":
+            len = X.shape[1]
+            blen = self.hparams.block_length
+            pad = (0, 0, 0, (-len) % self.hparams.block_length) # Append to multiple of block length
+            q = F.pad(q, pad)
+            k = F.pad(k, pad)
+            v = F.pad(v, pad)
+
+            bias = -1e9 * torch.triu(torch.ones(blen, blen), 1).to(X.device)
+            first_output = self.dot_product_attention(
+                q[:,:,:blen,:], k[:,:,:blen,:], v[:,:,:blen,:], bias=bias)
+
+            if q.shape[2] > blen:
+                q = q.view(q.shape[0], q.shape[1], -1, blen, q.shape[3])
+                k = k.view(k.shape[0], k.shape[1], -1, blen, k.shape[3])
+                v = v.view(v.shape[0], v.shape[1], -1, blen, v.shape[3])
+                local_k = torch.cat([k[:,:,:-1], k[:,:,1:]], 3) # [batch, nheads, (nblocks - 1), blen * 2, depth]
+                local_v = torch.cat([v[:,:,:-1], v[:,:,1:]], 3)
+                tail_q = q[:,:,1:]
+                bias = -1e9 * torch.triu(torch.ones(blen, 2 * blen), blen + 1).to(X.device)
+                tail_output = self.dot_product_attention(tail_q, local_k, local_v, bias=bias)
+                tail_output = tail_output.view(tail_output.shape[0], tail_output.shape[1], -1, tail_output.shape[4])
+                result = torch.cat([first_output, tail_output], 2)
+                result = result[:,:,:X.shape[1],:]
+            else:
+                result = first_output[:,:,:X.shape[1],:]
+
+        result = result.permute([0, 2, 1, 3]).contiguous()
+        result = result.view(result.shape[0:2] + (-1,))
+        # result = self.output_dense(result)
+        return result
+
+class Map(dict):
+    """
+    Example:
+    m = Map({'first_name': 'Eduardo'}, last_name='Pool', age=24, sports=['Soccer'])
+    """
+    def __init__(self, *args, **kwargs):
+        super(Map, self).__init__(*args, **kwargs)
+        for arg in args:
+            if isinstance(arg, dict):
+                for k, v in arg.iteritems():
+                    self[k] = v
+
+        if kwargs:
+            for k, v in kwargs.iteritems():
+                self[k] = v
+
+    def __getattr__(self, attr):
+        return self.get(attr)
+
+    def __setattr__(self, key, value):
+        self.__setitem__(key, value)
+
+    def __setitem__(self, key, value):
+        super(Map, self).__setitem__(key, value)
+        self.__dict__.update({key: value})
+
+    def __delattr__(self, item):
+        self.__delitem__(item)
+
+    def __delitem__(self, key):
+        super(Map, self).__delitem__(key)
+        del self.__dict__[key]
