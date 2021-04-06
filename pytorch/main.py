@@ -202,30 +202,18 @@ def train(args):
         print("wave shape", batch_data_dict['feature'][0].shape)
         print(len(batch_data_dict['feature']))
         features_batch = torch.empty(0,256,384,2)
-        time_bgn = time.time()
         for i in range(len(batch_data_dict['feature'])):
-          # print("wave shape", batch_data_dict['waveform'][i].shape)
-          # time_bgn = time.time()
-          # Z, tfrL0, tfrLF, tfrLQ, t, cenf, f = feature_extraction(batch_data_dict['waveform'][i])
-          # feature = np.array([Z, tfrL0, tfrLF, tfrLQ])
-          # print("cfp time 1 ", '{:.3f} s'.format(time_end-time_bgn))
-          # # print(feature.shape)
-          # feature = np.transpose(feature, axes=(2, 1, 0))
-          # # print(feature.shape)
           feature = batch_data_dict['feature'][i]
           print(feature.shape)
           features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
-          # time_end = time.time()
-          # print("cfp time 2 ", '{:.3f} s'.format(time_end-time_bgn))
-          print(len(features))
-          print(features[0].shape)
           features_batch = torch.cat((features_batch, torch.from_numpy(features[0])))
           print(features_batch.shape)
-        time_end = time.time()
-        print("cfp time ", '{:.3f} s'.format(time_end-time_bgn))
-        np.save(open('/content/fseatures', 'wb+'), features_batch[0])
-        break;
-        print(batch_data_dict.keys())
+
+        print(features_batch.shape)
+        # print(batch_data_dict['reg_onset_roll'].shape)
+        # # print("frame_output ", output_dict['frame_output'].shape)
+        # print(batch_data_dict['frame_roll'].shape)
+        # print(batch_data_dict['mask_roll'].shape)
       
         # with wave.open("/content/sound1.wav", "w") as f:
         #     # 2 Channels.
@@ -283,28 +271,30 @@ def train(args):
         #     for param_group in optimizer.param_groups:
         #         param_group['lr'] *= 0.9
         
-        # # Move data to device
-        # for key in batch_data_dict.keys():
-        #     batch_data_dict[key] = move_data_to_device(batch_data_dict[key], device)
-         
-        # model.train()
-        # batch_output_dict = model(batch_data_dict['waveform'])
-
-        # loss = loss_func(model, batch_output_dict, batch_data_dict)
-
-        # print(iteration, loss)
-
-        # # Backward
-        # loss.backward()
+        # Move data to device
+        for key in batch_data_dict.keys():
+            batch_data_dict[key] = move_data_to_device(batch_data_dict[key], device)
+        features_batch = move_data_to_device(features_batch.float(), device)
         
-        # optimizer.step()
-        # optimizer.zero_grad()
-        
-        # # Stop learning
-        # if iteration == early_stop:
-        #     break
+        model.train()
+        batch_output_dict = model(features_batch)
 
-        # iteration += 1
+        loss = loss_func(model, batch_output_dict, batch_data_dict)
+
+        print(iteration, loss)
+        print("hello")
+
+        # Backward
+        loss.backward()
+        
+        optimizer.step()
+        optimizer.zero_grad()
+        
+        # Stop learning
+        if iteration == early_stop:
+            break
+
+        iteration += 1
 
 
 if __name__ == '__main__':

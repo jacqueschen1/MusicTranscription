@@ -36,7 +36,7 @@ class MaestroDataset(object):
         self.max_note_shift = max_note_shift
         self.begin_note = config.begin_note
         self.classes_num = config.classes_num
-        self.segment_samples = int(self.sample_rate * self.segment_seconds)
+        self.segment_samples = int(self.frames_per_second * self.segment_seconds)
         self.augmentor = augmentor
 
         self.random_state = np.random.RandomState(1234)
@@ -80,15 +80,22 @@ class MaestroDataset(object):
 
         # Load hdf5
         with h5py.File(hdf5_path, 'r') as hf:
+            # start_sample = int(start_time * self.sample_rate)
+            # end_sample = start_sample + self.segment_samples
+
+            # if end_sample >= hf['waveform'].shape[0]:
+            #     start_sample -= self.segment_samples
+            #     end_sample -= self.segment_samples
+
             start_sample = int(start_time * self.frames_per_second)
-            end_sample = start_sample + (self.segment_seconds * self.frames_per_second)
+            end_sample = start_sample + int(round(self.segment_seconds * self.frames_per_second))
 
             if end_sample >= hf['feature'].shape[0]:
                 start_sample -= self.segment_samples
                 end_sample -= self.segment_samples
 
-            feature = hf['feature'][start_sample : end_sample]
 
+            # waveform = int16_to_float32(hf['waveform'][start_sample : end_sample])
             # if self.augmentor:
             #     waveform = self.augmentor.augment(waveform)
 
@@ -96,7 +103,9 @@ class MaestroDataset(object):
             #     """Augment pitch"""
             #     waveform = librosa.effects.pitch_shift(waveform, self.sample_rate, 
             #         note_shift, bins_per_octave=12)
+            # data_dict['waveform'] = waveform
 
+            feature = hf['feature'][start_sample : end_sample]
             data_dict['feature'] = feature
 
             midi_events = [e.decode() for e in hf['midi_event'][:]]

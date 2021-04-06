@@ -175,15 +175,15 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         midfeat = 1792
         momentum = 0.01
 
-        # Spectrogram extractor
-        self.spectrogram_extractor = Spectrogram(n_fft=window_size, 
-            hop_length=hop_size, win_length=window_size, window=window, 
-            center=center, pad_mode=pad_mode, freeze_parameters=True)
+        # # Spectrogram extractor
+        # self.spectrogram_extractor = Spectrogram(n_fft=window_size, 
+        #     hop_length=hop_size, win_length=window_size, window=window, 
+        #     center=center, pad_mode=pad_mode, freeze_parameters=True)
 
-        # Logmel feature extractor
-        self.logmel_extractor = LogmelFilterBank(sr=sample_rate, 
-            n_fft=window_size, n_mels=mel_bins, fmin=fmin, fmax=fmax, ref=ref, 
-            amin=amin, top_db=top_db, freeze_parameters=True)
+        # # Logmel feature extractor
+        # self.logmel_extractor = LogmelFilterBank(sr=sample_rate, 
+        #     n_fft=window_size, n_mels=mel_bins, fmin=fmin, fmax=fmax, ref=ref, 
+        #     amin=amin, top_db=top_db, freeze_parameters=True)
 
         self.bn0 = nn.BatchNorm2d(mel_bins, momentum)
 
@@ -222,15 +222,20 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
             'velocity_output': (batch_size, time_steps, classes_num)
           }
         """
-        time_bgn = time.time()
-        x = self.spectrogram_extractor(input)   # (batch_size, 1, time_steps, freq_bins)
-        x = self.logmel_extractor(x)    # (batch_size, 1, time_steps, mel_bins)
-        time_end = time.time()
+        # time_bgn = time.time()
+        # x = self.spectrogram_extractor(input)   # (batch_size, 1, time_steps, freq_bins)
+        # x = self.logmel_extractor(x)    # (batch_size, 1, time_steps, mel_bins)
+        # time_end = time.time()
 
-        print("mel time ", '{:.3f} s'.format(time_end-time_bgn))
+        # print("mel time ", '{:.3f} s'.format(time_end-time_bgn))
+        # print(x.shape)
+        x = input
+        
         print(x.shape)
 
         x = x.transpose(1, 3)
+
+        print(x.shape)
         x = self.bn0(x)
         x = x.transpose(1, 3)
 
