@@ -114,15 +114,19 @@ class AcousticModelCRnn8Dropout(nn.Module):
         self.bn5 = nn.BatchNorm1d(768, momentum=momentum)
 
         hyparams = Map()
-        hyparams['hidden_size'] = 128
+        hyparams['hidden_size'] = 128#24
+        #hyparams['hidden_size'] = 24
         hyparams['num_heads'] = 8
-        hyparams['block_length'] = 256
+        hyparams['block_length'] = 256#2048
+        #hyparams['block_length'] = 2048
         hyparams['attn_type'] = "local_1d"
-        hyparams['filter_size'] = 128
+        hyparams['filter_size'] = 128#24
+        #hyparams['filter_size'] = 24
         hyparams['dropout'] = 0
         self.attn = Attn(hyparams)
 
         self.fc = nn.Linear(768, classes_num, bias=True)
+        #self.fc = nn.Linear(128, classes_num, bias=True)
         
         self.init_weight()
 
@@ -150,27 +154,30 @@ class AcousticModelCRnn8Dropout(nn.Module):
         x = self.conv_block4(x, pool_size=(1, 2), pool_type='avg')
         x = F.dropout(x, p=0.2, training=self.training)
 
-        print("post conv", x.shape)
-        x = x.flatten(2)
-        # x = x.transpose(1, 3).flatten(2)
-        print("post flatten", x.shape)
+        #print("post conv", x.shape)
+        # x = x.transpose(1, 2).flatten(2)
+        #x = x.transpose(1, 3).flatten(2)
+        x = x.reshape(x.shape[0], x.shape[1], x.shape[2]*x.shape[3])
+        #print("post flatten", x.shape)
+        print("post fc", x.shape)
         x = x.transpose(1, 2)
-        print("post flatten", x.shape)
-        # x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
+        x = self.attn(x)
+        print("post attn, ", x.shape)
+        
+        x = x.transpose(1, 2)
+        x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
+        x = x.transpose(1, 2).flatten(2)
+        #print("post flatten", x.shape)
+        x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
+        #x = F.leaky_relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=True)
         
         # (x, _) = self.gru(x)
-        print("post fc", x.shape)
-        x = self.attn(x)
-        print("post attn, ", x.shape)
-        x = x.transpose(1,2)
-        x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
-        print("post stuff", x.shape)
-        x = x.transpose(1, 2).flatten(2)
-        print("pre fc", x.shape)
-        x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
+        print(x.shape, "after dropout")
+        #x = x.reshape(x.shape[0], x.shape[1]*x.shape[2])
         output = torch.sigmoid(self.fc(x))
+        print(output.shape, " output shape")
         return output
 
 
@@ -266,6 +273,7 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         velocity_output = self.velocity_model(x)    # (batch_size, time_steps, classes_num)
  
         # Use velocities to condition onset regression
+        print(reg_onset_output.shape, "reg_onset_output")
         x = torch.cat((reg_onset_output, (reg_onset_output ** 0.5) * velocity_output.detach()), dim=2)
         (x, _) = self.reg_onset_gru(x)
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)

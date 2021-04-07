@@ -52,7 +52,8 @@ def train(args):
     loss_type = args.loss_type
     augmentation = args.augmentation
     max_note_shift = args.max_note_shift
-    batch_size = args.batch_size
+    batch_size = 1#args.batch_size
+    #print(args.batch_size, "BATCH SIZE !!!")
     learning_rate = args.learning_rate
     reduce_iteration = args.reduce_iteration
     resume_iteration = args.resume_iteration
@@ -206,7 +207,9 @@ def train(args):
           feature = batch_data_dict['feature'][i]
           print(feature.shape)
           features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
-          features_batch = torch.cat((features_batch, torch.from_numpy(features[0])))
+          print(torch.from_numpy(features[0]).shape, " features 0")
+          print(features_batch.shape, " features batch")
+          features_batch = torch.cat((torch.tensor(features_batch, dtype=torch.float64), torch.tensor(torch.from_numpy(features[0]), dtype=torch.float64)))
           print(features_batch.shape)
 
         print(features_batch.shape)
@@ -278,7 +281,7 @@ def train(args):
         
         model.train()
         batch_output_dict = model(features_batch)
-
+        print(batch_output_dict, "DICTIONARY")
         loss = loss_func(model, batch_output_dict, batch_data_dict)
 
         print(iteration, loss)
