@@ -122,6 +122,9 @@ class AcousticModelCRnn8Dropout(nn.Module):
         hyparams['dropout'] = 0.3
         self.attn = DecoderLayer(hyparams)
 
+        self.bn2d = nn.BatchNorm2d(128, momentum=momentum)
+        self.attn2 = DecoderLayer(hyparams)
+
         self.fc = nn.Linear(768, classes_num, bias=True)
         
         self.init_weight()
@@ -131,6 +134,7 @@ class AcousticModelCRnn8Dropout(nn.Module):
         init_bn(self.bn5)
         # init_gru(self.gru)
         init_layer(self.fc)
+        init_bn(self.bn2d)
 
     def forward(self, input):
         """
@@ -164,6 +168,13 @@ class AcousticModelCRnn8Dropout(nn.Module):
         print("post fc", x.shape)
         x = self.attn(x)
         print("post attn, ", x.shape)
+        x = x.transpose(1,2)
+        x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
+        x = F.relu(self.bn2d(x))
+        x = x.flatten(2)
+        x = x.transpose(1, 2)
+        x = self.attn2(x)
+        print("post attn 2, ", x.shape)
         x = x.transpose(1,2)
         x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
         print("post stuff", x.shape)
