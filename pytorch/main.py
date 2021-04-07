@@ -253,18 +253,18 @@ def train(args):
 
         #     train_bgn_time = time.time()
         
-        # # Save model
-        # if iteration % 20000 == 0:
-        #     checkpoint = {
-        #         'iteration': iteration, 
-        #         'model': model.module.state_dict(), 
-        #         'sampler': train_sampler.state_dict()}
+        # Save model
+        if iteration % 1000 == 0:
+            checkpoint = {
+                'iteration': iteration, 
+                'model': model.module.state_dict(), 
+                'sampler': train_sampler.state_dict()}
 
-        #     checkpoint_path = os.path.join(
-        #         checkpoints_dir, '{}_iterations.pth'.format(iteration))
+            checkpoint_path = os.path.join(
+                checkpoints_dir, '{}_iterations.pth'.format(iteration))
                 
-        #     torch.save(checkpoint, checkpoint_path)
-        #     logging.info('Model saved to {}'.format(checkpoint_path))
+            torch.save(checkpoint, checkpoint_path)
+            logging.info('Model saved to {}'.format(checkpoint_path))
         
         # # Reduce learning rate
         # if iteration % reduce_iteration == 0 and iteration > 0:

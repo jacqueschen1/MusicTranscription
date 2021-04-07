@@ -119,7 +119,7 @@ class AcousticModelCRnn8Dropout(nn.Module):
         hyparams['block_length'] = 256
         hyparams['attn_type'] = "local_1d"
         hyparams['filter_size'] = 128
-        hyparams['dropout'] = 0
+        hyparams['dropout'] = 0.3
         self.attn = Attn(hyparams)
 
         self.fc = nn.Linear(768, classes_num, bias=True)
@@ -151,6 +151,7 @@ class AcousticModelCRnn8Dropout(nn.Module):
         x = F.dropout(x, p=0.2, training=self.training)
 
         print("post conv", x.shape)
+        
         x = x.flatten(2)
         # x = x.transpose(1, 3).flatten(2)
         print("post flatten", x.shape)
@@ -410,6 +411,7 @@ class DecoderLayer(nn.Module):
         X = self.layernorm_attn(self.dropout(y) + X)
         y = self.ffn(self.preprocess_(X))
         X = self.layernorm_ffn(self.dropout(y) + X)
+        print("post layernorm", X.shape)
         return X
 
 class Attn(nn.Module):
@@ -418,10 +420,10 @@ class Attn(nn.Module):
         self.hparams = hparams
         self.kd = self.hparams.hidden_size
         self.vd = self.hparams.hidden_size
-        # self.q_dense = nn.Linear(self.hparams.hidden_size, self.kd, bias=False)
-        # self.k_dense = nn.Linear(self.hparams.hidden_size, self.kd, bias=False)
-        # self.v_dense = nn.Linear(self.hparams.hidden_size, self.vd, bias=False)
-        # self.output_dense = nn.Linear(self.vd, self.hparams.hidden_size, bias=False)
+        self.q_dense = nn.Linear(self.hparams.hidden_size, self.kd, bias=False)
+        self.k_dense = nn.Linear(self.hparams.hidden_size, self.kd, bias=False)
+        self.v_dense = nn.Linear(self.hparams.hidden_size, self.vd, bias=False)
+        self.output_dense = nn.Linear(self.vd, self.hparams.hidden_size, bias=False)
         assert self.kd % self.hparams.num_heads == 0
         assert self.vd % self.hparams.num_heads == 0
 
@@ -433,9 +435,9 @@ class Attn(nn.Module):
         return weights @ v
 
     def forward(self, X):
-        q = X
-        k = X
-        v = X
+        q = self.q_dense(X)
+        k = self.k_dense(X)
+        v = self.v_dense(X)
         # Split to shape [batch_size, num_heads, len, depth / num_heads]
         q = q.view(q.shape[:-1] + (self.hparams.num_heads, self.kd // self.hparams.num_heads)).permute([0, 2, 1, 3])
         print(q.shape)
@@ -477,7 +479,7 @@ class Attn(nn.Module):
 
         result = result.permute([0, 2, 1, 3]).contiguous()
         result = result.view(result.shape[0:2] + (-1,))
-        # result = self.output_dense(result)
+        result = self.output_dense(result)
         return result
 
 class Map(dict):
