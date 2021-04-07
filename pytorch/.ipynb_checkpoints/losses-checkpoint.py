@@ -16,11 +16,11 @@ def regress_onset_offset_frame_velocity_bce(model, output_dict, target_dict):
     """High-resolution piano note regression loss, including onset regression, 
     offset regression, velocity regression and frame-wise classification losses.
     """
-    #print("output reg", output_dict['reg_onset_output'].shape)
-    #print(target_dict['reg_onset_roll'].shape)
-    #print("frame_output ", output_dict['frame_output'].shape)
-    #print(target_dict['frame_roll'].shape)
-    #print(target_dict['mask_roll'].shape)
+    print("output reg", output_dict['reg_onset_output'].shape)
+    print(target_dict['reg_onset_roll'].shape)
+    print("frame_output ", output_dict['frame_output'].shape)
+    print(target_dict['frame_roll'].shape)
+    print(target_dict['mask_roll'].shape)
 
     onset_loss = bce(output_dict['reg_onset_output'], target_dict['reg_onset_roll'], target_dict['mask_roll'])
     offset_loss = bce(output_dict['reg_offset_output'], target_dict['reg_offset_roll'], target_dict['mask_roll'])

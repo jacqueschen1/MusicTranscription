@@ -31,7 +31,7 @@ import wave
 
 def train(args):
     """Train a piano transcription system.
-    
+
     Args:
       workspace: str, directory of your workspace
       model_type: str, e.g. 'Regressonset_regressoffset_frame_velocity_CRNN'
@@ -45,14 +45,14 @@ def train(args):
       device: 'cuda' | 'cpu'
       mini_data: bool
     """
-    howManyNan = 0
+
     # Arugments & parameters
     workspace = args.workspace
     model_type = args.model_type
     loss_type = args.loss_type
     augmentation = args.augmentation
     max_note_shift = args.max_note_shift
-    batch_size = 3#args.batch_size
+    batch_size = 1#args.batch_size
     #print(args.batch_size, "BATCH SIZE !!!")
     learning_rate = args.learning_rate
     reduce_iteration = args.reduce_iteration
@@ -200,19 +200,19 @@ def train(args):
 
     for batch_data_dict in train_loader:
 
-        #print("wave shape", batch_data_dict['feature'][0].shape)
-        #print(len(batch_data_dict['feature']))
+        print("wave shape", batch_data_dict['feature'][0].shape)
+        print(len(batch_data_dict['feature']))
         features_batch = torch.empty(0,256,384,2)
         for i in range(len(batch_data_dict['feature'])):
           feature = batch_data_dict['feature'][i]
-          #print(feature.shape)
+          print(feature.shape)
           features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
-          #print(torch.from_numpy(features[0]).shape, " features 0")
-          #print(features_batch.shape, " features batch")
+          print(torch.from_numpy(features[0]).shape, " features 0")
+          print(features_batch.shape, " features batch")
           features_batch = torch.cat((torch.tensor(features_batch, dtype=torch.float64), torch.tensor(torch.from_numpy(features[0]), dtype=torch.float64)))
-          #print(features_batch.shape)
+          print(features_batch.shape)
 
-        #print(features_batch.shape)
+        print(features_batch.shape)
         # print(batch_data_dict['reg_onset_roll'].shape)
         # # print("frame_output ", output_dict['frame_output'].shape)
         # print(batch_data_dict['frame_roll'].shape)
@@ -282,37 +282,19 @@ def train(args):
         model.train()
         batch_output_dict = model(features_batch)
         #print(batch_output_dict, "DICTIONARY")
-        
         loss = loss_func(model, batch_output_dict, batch_data_dict)
 
-        #print(iteration, loss)
-        #print("hello")
+        print(iteration, loss)
+        print("hello")
         # Backward
         loss.backward()
         #print(model)
-        '''
         if iteration > 50:
             for name, p in model.named_parameters():
                 #print(p.grad.norm(), name, "GRAD NORM!!!!!!!!!")
-                if p.requires_grad:
-                    print(name, p.grad.norm())
-        '''
-        isNan = False
-        
-        for name, p in model.named_parameters():
-            #print(p.grad.norm(), name, "GRAD NORM!!!!!!!!!")
-            if p.requires_grad:
-                #print(name, p.grad.norm())
-                if torch.isnan(p.grad.norm()).any():
-                    isNan = True
-                    howManyNan = howManyNan + 1
-                    print("NAAAAAAAAAAAAAAAAAAAAAAAAANI!!!!!!!!!!!!!!??????????")
-                    print(howManyNan, "HOW MANY NAN!!!!!?")
-                    print(iteration)
-                    print(batch_data_dict["name"], " filename")
-                    break
-        if iteration % 200 == 0:
-            print(loss, "LOSS !?")
+                if param.requires_grad:
+                    print(name, p.data)
+
         '''
         print(torch.max(model.module.frame_model.conv_block1.conv1.weight.grad), "MAXIMUM block1 conv1") 
         print(torch.max(model.module.frame_model.conv_block1.conv2.weight.grad), "MAXIMUM block1 conv2")
@@ -400,13 +382,12 @@ def train(args):
             print(torch.max(model.module.frame_gru.all_weights[1][i].grad), "MAXIMUM gru 1")
         print(torch.max(model.module.frame_fc.weight.grad), "MAXIMUM fc")
         '''
-        #print(batch_data_dict['velocity_roll'], "DATA DICT")
-        #print(batch_output_dict['velocity_output'], "OUTPUT DICT")
+        print(batch_data_dict['velocity_roll'], "DATA DICT")
+        print(batch_output_dict['velocity_output'], "OUTPUT DICT")
         
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.01 , norm_type=2)
+        #torch.nn.utils.clip_grad_norm_(model.parameters(), 0.01 , norm_type='inf')
         
-        if not isNan:
-            optimizer.step()
+        optimizer.step()
         optimizer.zero_grad()
         
         # Stop learning

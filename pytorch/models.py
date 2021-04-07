@@ -87,7 +87,6 @@ class ConvBlock(nn.Module):
         """
         Args:
           input: (batch_size, in_channels, time_steps, freq_bins)
-
         Outputs:
           output: (batch_size, out_channels, classes_num)
         """
@@ -114,18 +113,15 @@ class AcousticModelCRnn8Dropout(nn.Module):
         self.bn5 = nn.BatchNorm1d(768, momentum=momentum)
 
         hyparams = Map()
-        hyparams['hidden_size'] = 128#24
-        #hyparams['hidden_size'] = 24
+        hyparams['hidden_size'] = 128
         hyparams['num_heads'] = 8
-        hyparams['block_length'] = 256#2048
-        #hyparams['block_length'] = 2048
+        hyparams['block_length'] = 256
         hyparams['attn_type'] = "local_1d"
         hyparams['filter_size'] = 128
         hyparams['dropout'] = 0.3
         self.attn = DecoderLayer(hyparams)
 
         self.fc = nn.Linear(768, classes_num, bias=True)
-        #self.fc = nn.Linear(128, classes_num, bias=True)
         
         self.init_weight()
 
@@ -139,7 +135,6 @@ class AcousticModelCRnn8Dropout(nn.Module):
         """
         Args:
           input: (batch_size, channels_num, time_steps, freq_bins)
-
         Outputs:
           output: (batch_size, time_steps, classes_num)
         """
@@ -153,37 +148,28 @@ class AcousticModelCRnn8Dropout(nn.Module):
         x = self.conv_block4(x, pool_size=(1, 2), pool_type='avg')
         x = F.dropout(x, p=0.2, training=self.training)
 
-        print("post conv", x.shape)
+        #print("post conv", x.shape)
         
         x = x.flatten(2)
         # x = x.transpose(1, 3).flatten(2)
-        print("post flatten", x.shape)
+        #print("post flatten", x.shape)
         x = x.transpose(1, 2)
-        print("post flatten", x.shape)
+        #print("post flatten", x.shape)
         # x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=True)
         
         # (x, _) = self.gru(x)
-
-        print("post fc", x.shape)
-        x = x.transpose(1, 2)
+        #print("post fc", x.shape)
         x = self.attn(x)
-        print("post attn, ", x.shape)
-        
-        x = x.transpose(1, 2)
+        #print("post attn, ", x.shape)
+        x = x.transpose(1,2)
         x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
+        #print("post stuff", x.shape)
         x = x.transpose(1, 2).flatten(2)
-        #print("post flatten", x.shape)
+        #print("pre fc", x.shape)
         x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
-        #x = F.leaky_relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
-        x = F.dropout(x, p=0.5, training=self.training, inplace=True)
-        
-        # (x, _) = self.gru(x)
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
-        print(x.shape, "after dropout")
-        #x = x.reshape(x.shape[0], x.shape[1]*x.shape[2])
         output = torch.sigmoid(self.fc(x))
-        print(output.shape, " output shape")
         return output
 
 
@@ -246,7 +232,6 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         """
         Args:
           input: (batch_size, data_length)
-
         Outputs:
           output_dict: dict, {
             'reg_onset_output': (batch_size, time_steps, classes_num),
@@ -264,14 +249,14 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         # print(x.shape)
         x = input
         
-        print(x.shape)
+        #print(x.shape)
 
         x = x.transpose(1, 2)
 
-        print(x.shape)
+        #print(x.shape)
         x = self.bn0(x)
         x = x.transpose(1, 3)
-        print("post", x.shape)
+        #print("post", x.shape)
 
         frame_output = self.frame_model(x)  # (batch_size, time_steps, classes_num)
         reg_onset_output = self.reg_onset_model(x)  # (batch_size, time_steps, classes_num)
@@ -279,7 +264,6 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         velocity_output = self.velocity_model(x)    # (batch_size, time_steps, classes_num)
  
         # Use velocities to condition onset regression
-        print(reg_onset_output.shape, "reg_onset_output")
         x = torch.cat((reg_onset_output, (reg_onset_output ** 0.5) * velocity_output.detach()), dim=2)
         (x, _) = self.reg_onset_gru(x)
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
@@ -348,7 +332,6 @@ class Regress_pedal_CRNN(nn.Module):
         """
         Args:
           input: (batch_size, data_length)
-
         Outputs:
           output_dict: dict, {
             'reg_onset_output': (batch_size, time_steps, classes_num),
@@ -420,11 +403,11 @@ class DecoderLayer(nn.Module):
     def forward(self, X):
         X = self.preprocess_(X)
         y = self.attn(X)
-        print("attn done")
+        #print("attn done")
         X = self.layernorm_attn(self.dropout(y) + X)
         y = self.ffn(self.preprocess_(X))
         X = self.layernorm_ffn(self.dropout(y) + X)
-        print("post layernorm", X.shape)
+        #print("post layernorm", X.shape)
         return X
 
 class Attn(nn.Module):
@@ -453,12 +436,12 @@ class Attn(nn.Module):
         v = self.v_dense(X)
         # Split to shape [batch_size, num_heads, len, depth / num_heads]
         q = q.view(q.shape[:-1] + (self.hparams.num_heads, self.kd // self.hparams.num_heads)).permute([0, 2, 1, 3])
-        print(q.shape)
+        #print(q.shape)
         k = k.view(k.shape[:-1] + (self.hparams.num_heads, self.kd // self.hparams.num_heads)).permute([0, 2, 1, 3])
         v = v.view(v.shape[:-1] + (self.hparams.num_heads, self.vd // self.hparams.num_heads)).permute([0, 2, 1, 3])
         q *= (self.kd // self.hparams.num_heads) ** (-0.5)
 
-        print("helppppp")
+        #print("helppppp")
 
         if self.hparams.attn_type == "global":
             bias = -1e9 * torch.triu(torch.ones(X.shape[1], X.shape[1]), 1).to(X.device)

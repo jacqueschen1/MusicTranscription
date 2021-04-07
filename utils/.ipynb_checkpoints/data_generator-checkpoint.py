@@ -74,7 +74,6 @@ class MaestroDataset(object):
         hdf5_path = os.path.join(self.hdf5s_dir, year, hdf5_name)
          
         data_dict = {}
-        data_dict["name"] = hdf5_name
 
         note_shift = self.random_state.randint(low=-self.max_note_shift, 
             high=self.max_note_shift + 1)
