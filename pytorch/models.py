@@ -114,11 +114,11 @@ class AcousticModelCRnn8Dropout(nn.Module):
         self.bn5 = nn.BatchNorm1d(768, momentum=momentum)
 
         hyparams = Map()
-        hyparams['hidden_size'] = 24
+        hyparams['hidden_size'] = 128
         hyparams['num_heads'] = 8
-        hyparams['block_length'] = 2048
+        hyparams['block_length'] = 256
         hyparams['attn_type'] = "local_1d"
-        hyparams['filter_size'] = 24
+        hyparams['filter_size'] = 128
         hyparams['dropout'] = 0
         self.attn = Attn(hyparams)
 
@@ -151,8 +151,8 @@ class AcousticModelCRnn8Dropout(nn.Module):
         x = F.dropout(x, p=0.2, training=self.training)
 
         print("post conv", x.shape)
-        # x = x.transpose(1, 2).flatten(2)
-        x = x.transpose(1, 3).flatten(2)
+        x = x.flatten(2)
+        # x = x.transpose(1, 3).flatten(2)
         print("post flatten", x.shape)
         x = x.transpose(1, 2)
         print("post flatten", x.shape)
@@ -163,6 +163,12 @@ class AcousticModelCRnn8Dropout(nn.Module):
         print("post fc", x.shape)
         x = self.attn(x)
         print("post attn, ", x.shape)
+        x = x.transpose(1,2)
+        x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
+        print("post stuff", x.shape)
+        x = x.transpose(1, 2).flatten(2)
+        print("pre fc", x.shape)
+        x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
         output = torch.sigmoid(self.fc(x))
         return output
