@@ -122,19 +122,19 @@ class AcousticModelCRnn8Dropout(nn.Module):
         hyparams['dropout'] = 0.3
         self.attn = DecoderLayer(hyparams)
 
-        self.bn2d = nn.BatchNorm2d(128, momentum=momentum)
-        self.attn2 = DecoderLayer(hyparams)
+        self.gru = nn.GRU(input_size=768, hidden_size=256, num_layers=1, 
+            bias=True, batch_first=True, dropout=0., bidirectional=True)
 
-        self.fc = nn.Linear(768, classes_num, bias=True)
+        self.fc = nn.Linear(512, classes_num, bias=True)
         
         self.init_weight()
 
     def init_weight(self):
         init_layer(self.fc5)
         init_bn(self.bn5)
-        # init_gru(self.gru)
+        init_gru(self.gru)
         init_layer(self.fc)
-        init_bn(self.bn2d)
+
 
     def forward(self, input):
         """
@@ -170,17 +170,14 @@ class AcousticModelCRnn8Dropout(nn.Module):
         print("post attn, ", x.shape)
         x = x.transpose(1,2)
         x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
-        x = F.relu(self.bn2d(x))
-        x = x.flatten(2)
-        x = x.transpose(1, 2)
-        x = self.attn2(x)
-        print("post attn 2, ", x.shape)
-        x = x.transpose(1,2)
-        x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
         print("post stuff", x.shape)
         x = x.transpose(1, 2).flatten(2)
         print("pre fc", x.shape)
         x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
+        x = F.dropout(x, p=0.5, training=self.training, inplace=False)
+        print("pre gru ", x.shape)
+        (x, _) = self.gru(x)
+        print("post gru ", x.shape)
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
         output = torch.sigmoid(self.fc(x))
         return output
@@ -407,9 +404,13 @@ class DecoderLayer(nn.Module):
         self.dropout = nn.Dropout(p=hparams.dropout)
         self.layernorm_attn = nn.LayerNorm([self.hparams.hidden_size], eps=1e-6, elementwise_affine=True)
         self.layernorm_ffn = nn.LayerNorm([self.hparams.hidden_size], eps=1e-6, elementwise_affine=True)
-        self.ffn = nn.Sequential(nn.Linear(self.hparams.hidden_size, self.hparams.filter_size, bias=True),
+        self.fc1 = nn.Linear(self.hparams.hidden_size, self.hparams.filter_size, bias=True)
+        self.fc2 = nn.Linear(self.hparams.filter_size, self.hparams.hidden_size, bias=True)
+        self.ffn = nn.Sequential(self.fc1,
                                  nn.ReLU(),
-                                 nn.Linear(self.hparams.filter_size, self.hparams.hidden_size, bias=True))
+                                 self.fc2)
+        init_layer(self.fc1)
+        init_layer(self.fc2)
 
     def preprocess_(self, X):
         return X
@@ -437,6 +438,11 @@ class Attn(nn.Module):
         self.output_dense = nn.Linear(self.vd, self.hparams.hidden_size, bias=False)
         assert self.kd % self.hparams.num_heads == 0
         assert self.vd % self.hparams.num_heads == 0
+
+        init_layer(self.q_dense)
+        init_layer(self.k_dense)
+        init_layer(self.v_dense)
+        init_layer(self.output_dense)
 
     def dot_product_attention(self, q, k, v, bias=None):
         logits = torch.einsum("...kd,...qd->...qk", k, q)
