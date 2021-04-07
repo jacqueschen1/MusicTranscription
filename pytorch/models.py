@@ -396,9 +396,13 @@ class DecoderLayer(nn.Module):
         self.dropout = nn.Dropout(p=hparams.dropout)
         self.layernorm_attn = nn.LayerNorm([self.hparams.hidden_size], eps=1e-6, elementwise_affine=True)
         self.layernorm_ffn = nn.LayerNorm([self.hparams.hidden_size], eps=1e-6, elementwise_affine=True)
-        self.ffn = nn.Sequential(nn.Linear(self.hparams.hidden_size, self.hparams.filter_size, bias=True),
+        self.fc1 = nn.Linear(self.hparams.hidden_size, self.hparams.filter_size, bias=True)
+        self.fc2 = nn.Linear(self.hparams.filter_size, self.hparams.hidden_size, bias=True)
+        self.ffn = nn.Sequential(self.fc1,
                                  nn.ReLU(),
-                                 nn.Linear(self.hparams.filter_size, self.hparams.hidden_size, bias=True))
+                                 self.fc2)
+        init_layer(self.fc1)
+        init_layer(self.fc2)
 
     def preprocess_(self, X):
         return X
@@ -426,6 +430,11 @@ class Attn(nn.Module):
         self.output_dense = nn.Linear(self.vd, self.hparams.hidden_size, bias=False)
         assert self.kd % self.hparams.num_heads == 0
         assert self.vd % self.hparams.num_heads == 0
+
+        init_layer(self.q_dense)
+        init_layer(self.k_dense)
+        init_layer(self.v_dense)
+        init_layer(self.output_dense)
 
     def dot_product_attention(self, q, k, v, bias=None):
         logits = torch.einsum("...kd,...qd->...qk", k, q)
