@@ -120,7 +120,7 @@ class AcousticModelCRnn8Dropout(nn.Module):
         hyparams['attn_type'] = "local_1d"
         hyparams['filter_size'] = 128
         hyparams['dropout'] = 0.3
-        self.attn = Attn(hyparams)
+        self.attn = DecoderLayer(hyparams)
 
         self.fc = nn.Linear(768, classes_num, bias=True)
         
