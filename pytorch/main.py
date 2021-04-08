@@ -281,14 +281,18 @@ def train(args):
 
         loss = loss_func(model, batch_output_dict, batch_data_dict)
 
-        print(iteration, loss)
-        # print("hello")
+        # print(iteration, loss)
 
         # Backward
         loss.backward()
+
+        if iteration % 100 == 0:
+          print(loss, iteration, "LOSS")
         
-        optimizer.step()
-        optimizer.zero_grad()
+        if iteration % 2 != 0:
+            if not isNan:
+                optimizer.step()
+            optimizer.zero_grad()
         
         # Stop learning
         if iteration == early_stop:
