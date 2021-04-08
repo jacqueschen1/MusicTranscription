@@ -199,7 +199,7 @@ def train(args):
 
     for batch_data_dict in train_loader:
 
-        print("wave shape", batch_data_dict['feature'][0].shape)
+        # print("wave shape", batch_data_dict['feature'][0].shape)
         print(len(batch_data_dict['feature']))
         features_batch = torch.empty(0,256,384,2)
         for i in range(len(batch_data_dict['feature'])):

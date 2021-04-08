@@ -115,8 +115,10 @@ class AcousticModelCRnn8Dropout(nn.Module):
 
         hyparams = Map()
         hyparams['hidden_size'] = 128
+        hyparams['total_key_depth'] = 128
+        hyparams['total_value_depth'] = 128
         hyparams['num_heads'] = 8
-        hyparams['block_length'] = 256
+        hyparams['block_length'] = 128
         hyparams['attn_type'] = "local_1d"
         hyparams['filter_size'] = 128
         hyparams['dropout'] = 0.3
@@ -219,9 +221,9 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         self.frame_model = AcousticModelCRnn8Dropout(classes_num, midfeat, momentum)
         self.reg_onset_model = AcousticModelCRnn8Dropout(classes_num, midfeat, momentum)
         self.reg_offset_model = AcousticModelCRnn8Dropout(classes_num, midfeat, momentum)
-        self.velocity_model = AcousticModelCRnn8Dropout(classes_num, midfeat, momentum)
+        # self.velocity_model = AcousticModelCRnn8Dropout(classes_num, midfeat, momentum)
 
-        self.reg_onset_gru = nn.GRU(input_size=88 * 2, hidden_size=256, num_layers=1, 
+        self.reg_onset_gru = nn.GRU(input_size=88, hidden_size=256, num_layers=1, 
             bias=True, batch_first=True, dropout=0., bidirectional=True)
         self.reg_onset_fc = nn.Linear(512, classes_num, bias=True)
 
@@ -272,11 +274,11 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         frame_output = self.frame_model(x)  # (batch_size, time_steps, classes_num)
         reg_onset_output = self.reg_onset_model(x)  # (batch_size, time_steps, classes_num)
         reg_offset_output = self.reg_offset_model(x)    # (batch_size, time_steps, classes_num)
-        velocity_output = self.velocity_model(x)    # (batch_size, time_steps, classes_num)
+        # velocity_output = self.velocity_model(x)    # (batch_size, time_steps, classes_num)
  
         # Use velocities to condition onset regression
-        x = torch.cat((reg_onset_output, (reg_onset_output ** 0.5) * velocity_output.detach()), dim=2)
-        (x, _) = self.reg_onset_gru(x)
+        # x = torch.cat((reg_onset_output, (reg_onset_output ** 0.5) * velocity_output.detach()), dim=2)
+        (x, _) = self.reg_onset_gru(reg_onset_output)
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
         reg_onset_output = torch.sigmoid(self.reg_onset_fc(x))
         """(batch_size, time_steps, classes_num)"""
@@ -292,7 +294,8 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
             'reg_onset_output': reg_onset_output, 
             'reg_offset_output': reg_offset_output, 
             'frame_output': frame_output, 
-            'velocity_output': velocity_output}
+            # 'velocity_output': velocity_output
+            }
 
         return output_dict
 
@@ -430,8 +433,8 @@ class Attn(nn.Module):
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
-        self.kd = self.hparams.hidden_size
-        self.vd = self.hparams.hidden_size
+        self.kd = self.hparams.total_key_depth or self.hparams.hidden_size
+        self.vd = self.hparams.total_value_depth or self.hparams.hidden_size
         self.q_dense = nn.Linear(self.hparams.hidden_size, self.kd, bias=False)
         self.k_dense = nn.Linear(self.hparams.hidden_size, self.kd, bias=False)
         self.v_dense = nn.Linear(self.hparams.hidden_size, self.vd, bias=False)
@@ -446,9 +449,13 @@ class Attn(nn.Module):
 
     def dot_product_attention(self, q, k, v, bias=None):
         logits = torch.einsum("...kd,...qd->...qk", k, q)
+        print("q in attention", q.shape)
+        print("k in attention", k.shape)
         if bias is not None:
             logits += bias
         weights = F.softmax(logits, dim=-1)
+        print("attention weights", weights.shape)
+        print("value", v.shape)
         return weights @ v
 
     def forward(self, X):
@@ -457,45 +464,57 @@ class Attn(nn.Module):
         v = self.v_dense(X)
         # Split to shape [batch_size, num_heads, len, depth / num_heads]
         q = q.view(q.shape[:-1] + (self.hparams.num_heads, self.kd // self.hparams.num_heads)).permute([0, 2, 1, 3])
-        print(q.shape)
+        # print("q shape", q.shape)
         k = k.view(k.shape[:-1] + (self.hparams.num_heads, self.kd // self.hparams.num_heads)).permute([0, 2, 1, 3])
         v = v.view(v.shape[:-1] + (self.hparams.num_heads, self.vd // self.hparams.num_heads)).permute([0, 2, 1, 3])
         q *= (self.kd // self.hparams.num_heads) ** (-0.5)
-
-        print("helppppp")
 
         if self.hparams.attn_type == "global":
             bias = -1e9 * torch.triu(torch.ones(X.shape[1], X.shape[1]), 1).to(X.device)
             result = self.dot_product_attention(q, k, v, bias=bias)
         elif self.hparams.attn_type == "local_1d":
             len = X.shape[1]
+            # print("len", len)
             blen = self.hparams.block_length
             pad = (0, 0, 0, (-len) % self.hparams.block_length) # Append to multiple of block length
             q = F.pad(q, pad)
             k = F.pad(k, pad)
             v = F.pad(v, pad)
 
+            # print("qpad, ", q.shape)
+
             bias = -1e9 * torch.triu(torch.ones(blen, blen), 1).to(X.device)
             first_output = self.dot_product_attention(
                 q[:,:,:blen,:], k[:,:,:blen,:], v[:,:,:blen,:], bias=bias)
+            # print("first output, ", first_output.shape)
 
             if q.shape[2] > blen:
                 q = q.view(q.shape[0], q.shape[1], -1, blen, q.shape[3])
                 k = k.view(k.shape[0], k.shape[1], -1, blen, k.shape[3])
                 v = v.view(v.shape[0], v.shape[1], -1, blen, v.shape[3])
+                # print("q-again, ", q.shape)
                 local_k = torch.cat([k[:,:,:-1], k[:,:,1:]], 3) # [batch, nheads, (nblocks - 1), blen * 2, depth]
                 local_v = torch.cat([v[:,:,:-1], v[:,:,1:]], 3)
+                # print("local-k", local_k.shape)
                 tail_q = q[:,:,1:]
+                # print("tail q", tail_q.shape)
                 bias = -1e9 * torch.triu(torch.ones(blen, 2 * blen), blen + 1).to(X.device)
                 tail_output = self.dot_product_attention(tail_q, local_k, local_v, bias=bias)
+                # print("tail output,", tail_output.shape)
                 tail_output = tail_output.view(tail_output.shape[0], tail_output.shape[1], -1, tail_output.shape[4])
+                # print("tail output2,", tail_output.shape)
                 result = torch.cat([first_output, tail_output], 2)
+                # print("restul 1", result.shape)
                 result = result[:,:,:X.shape[1],:]
+                # print("restul 2", result.shape)
+
             else:
                 result = first_output[:,:,:X.shape[1],:]
 
         result = result.permute([0, 2, 1, 3]).contiguous()
+        # print("restul 3", result.shape)
         result = result.view(result.shape[0:2] + (-1,))
+        # print("restul 4", result.shape)
         result = self.output_dense(result)
         return result
 
