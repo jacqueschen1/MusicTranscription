@@ -6,6 +6,7 @@ import time
 import librosa
 import torch
 import torch.nn as nn
+from cfp import feature_extraction, create_batches
 
 from utilities import pad_truncate_sequence
 
@@ -51,12 +52,18 @@ def forward_dataloader(model, dataloader, batch_size, return_target=True):
     device = next(model.parameters()).device
 
     for n, batch_data_dict in enumerate(dataloader):
+
+        features_batch = torch.empty(0,256,384,2)
+        for i in range(len(batch_data_dict['feature'])):
+          feature = batch_data_dict['feature'][i]
+          features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
+          features_batch = torch.cat((features_batch, torch.from_numpy(features[0])))
         
-        batch_waveform = move_data_to_device(batch_data_dict['waveform'], device)
+        batch_feature = move_data_to_device(features_batch.float(), device)
 
         with torch.no_grad():
             model.eval()
-            batch_output_dict = model(batch_waveform)
+            batch_output_dict = model(batch_feature)
 
         for key in batch_output_dict.keys():
             if '_list' not in key:
@@ -99,12 +106,12 @@ def forward(model, x, batch_size):
         if pointer >= len(x):
             break
 
-        batch_waveform = move_data_to_device(x[pointer : pointer + batch_size], device)
+        batch_feature = move_data_to_device(x[pointer : pointer + batch_size], device)
         pointer += batch_size
 
         with torch.no_grad():
             model.eval()
-            batch_output_dict = model(batch_waveform)
+            batch_output_dict = model(batch_feature)
 
         for key in batch_output_dict.keys():
             # if '_list' not in key:

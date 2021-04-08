@@ -156,30 +156,30 @@ class AcousticModelCRnn8Dropout(nn.Module):
         x = self.conv_block4(x, pool_size=(1, 2), pool_type='avg')
         x = F.dropout(x, p=0.2, training=self.training)
 
-        print("post conv", x.shape)
+        # print("post conv", x.shape)
         
         x = x.flatten(2)
         # x = x.transpose(1, 3).flatten(2)
-        print("post flatten", x.shape)
+        # print("post flatten", x.shape)
         x = x.transpose(1, 2)
-        print("post flatten", x.shape)
+        # print("post flatten", x.shape)
         # x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=True)
         
         # (x, _) = self.gru(x)
-        print("post fc", x.shape)
+        # print("post fc", x.shape)
         x = self.attn(x)
-        print("post attn, ", x.shape)
+        # print("post attn, ", x.shape)
         x = x.transpose(1,2)
         x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
-        print("post stuff", x.shape)
+        # print("post stuff", x.shape)
         x = x.transpose(1, 2).flatten(2)
-        print("pre fc", x.shape)
+        # print("pre fc", x.shape)
         x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
-        print("pre gru ", x.shape)
+        # print("pre gru ", x.shape)
         (x, _) = self.gru(x)
-        print("post gru ", x.shape)
+        # print("post gru ", x.shape)
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
         output = torch.sigmoid(self.fc(x))
         return output
@@ -262,14 +262,14 @@ class Regress_onset_offset_frame_velocity_CRNN(nn.Module):
         # print(x.shape)
         x = input
         
-        print(x.shape)
+        # print(x.shape)
 
         x = x.transpose(1, 2)
 
-        print(x.shape)
+        # print(x.shape)
         x = self.bn0(x)
         x = x.transpose(1, 3)
-        print("post", x.shape)
+        # print("post", x.shape)
 
         frame_output = self.frame_model(x)  # (batch_size, time_steps, classes_num)
         reg_onset_output = self.reg_onset_model(x)  # (batch_size, time_steps, classes_num)
@@ -422,11 +422,11 @@ class DecoderLayer(nn.Module):
     def forward(self, X):
         X = self.preprocess_(X)
         y = self.attn(X)
-        print("attn done")
+        # print("attn done")
         X = self.layernorm_attn(self.dropout(y) + X)
         y = self.ffn(self.preprocess_(X))
         X = self.layernorm_ffn(self.dropout(y) + X)
-        print("post layernorm", X.shape)
+        # print("post layernorm", X.shape)
         return X
 
 class Attn(nn.Module):
@@ -449,13 +449,13 @@ class Attn(nn.Module):
 
     def dot_product_attention(self, q, k, v, bias=None):
         logits = torch.einsum("...kd,...qd->...qk", k, q)
-        print("q in attention", q.shape)
-        print("k in attention", k.shape)
+        # print("q in attention", q.shape)
+        # print("k in attention", k.shape)
         if bias is not None:
             logits += bias
         weights = F.softmax(logits, dim=-1)
-        print("attention weights", weights.shape)
-        print("value", v.shape)
+        # print("attention weights", weights.shape)
+        # print("value", v.shape)
         return weights @ v
 
     def forward(self, X):

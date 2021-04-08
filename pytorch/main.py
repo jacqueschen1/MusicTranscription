@@ -200,16 +200,16 @@ def train(args):
     for batch_data_dict in train_loader:
 
         # print("wave shape", batch_data_dict['feature'][0].shape)
-        print(len(batch_data_dict['feature']))
+        # print(len(batch_data_dict['feature']))
         features_batch = torch.empty(0,256,384,2)
         for i in range(len(batch_data_dict['feature'])):
           feature = batch_data_dict['feature'][i]
-          print(feature.shape)
+          # print(feature.shape)
           features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
           features_batch = torch.cat((features_batch, torch.from_numpy(features[0])))
-          print(features_batch.shape)
+          # print(features_batch.shape)
 
-        print(features_batch.shape)
+        # print(features_batch.shape)
         # print(batch_data_dict['reg_onset_roll'].shape)
         # # print("frame_output ", output_dict['frame_output'].shape)
         # print(batch_data_dict['frame_roll'].shape)
@@ -225,33 +225,33 @@ def train(args):
         # break
         
         # Evaluation 
-        # if iteration % 5000 == 0:# and iteration > 0:
-        #     logging.info('------------------------------------')
-        #     logging.info('Iteration: {}'.format(iteration))
+        if iteration % 5000 == 0:# and iteration > 0:
+            logging.info('------------------------------------')
+            logging.info('Iteration: {}'.format(iteration))
 
-        #     train_fin_time = time.time()
+            train_fin_time = time.time()
 
-        #     evaluate_train_statistics = evaluator.evaluate(evaluate_train_loader)
-        #     validate_statistics = evaluator.evaluate(validate_loader)
-        #     test_statistics = evaluator.evaluate(test_loader)
+            evaluate_train_statistics = evaluator.evaluate(evaluate_train_loader)
+            validate_statistics = evaluator.evaluate(validate_loader)
+            test_statistics = evaluator.evaluate(test_loader)
 
-        #     logging.info('    Train statistics: {}'.format(evaluate_train_statistics))
-        #     logging.info('    Validation statistics: {}'.format(validate_statistics))
-        #     logging.info('    Test statistics: {}'.format(test_statistics))
+            logging.info('    Train statistics: {}'.format(evaluate_train_statistics))
+            logging.info('    Validation statistics: {}'.format(validate_statistics))
+            logging.info('    Test statistics: {}'.format(test_statistics))
 
-        #     statistics_container.append(iteration, evaluate_train_statistics, data_type='train')
-        #     statistics_container.append(iteration, validate_statistics, data_type='validation')
-        #     statistics_container.append(iteration, test_statistics, data_type='test')
-        #     statistics_container.dump()
+            statistics_container.append(iteration, evaluate_train_statistics, data_type='train')
+            statistics_container.append(iteration, validate_statistics, data_type='validation')
+            statistics_container.append(iteration, test_statistics, data_type='test')
+            statistics_container.dump()
 
-        #     train_time = train_fin_time - train_bgn_time
-        #     validate_time = time.time() - train_fin_time
+            train_time = train_fin_time - train_bgn_time
+            validate_time = time.time() - train_fin_time
 
-        #     logging.info(
-        #         'Train time: {:.3f} s, validate time: {:.3f} s'
-        #         ''.format(train_time, validate_time))
+            logging.info(
+                'Train time: {:.3f} s, validate time: {:.3f} s'
+                ''.format(train_time, validate_time))
 
-        #     train_bgn_time = time.time()
+            train_bgn_time = time.time()
         
         # Save model
         if iteration % 1000 == 0:
@@ -282,7 +282,7 @@ def train(args):
         loss = loss_func(model, batch_output_dict, batch_data_dict)
 
         print(iteration, loss)
-        print("hello")
+        # print("hello")
 
         # Backward
         loss.backward()
