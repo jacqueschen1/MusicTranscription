@@ -294,10 +294,10 @@ def train(args):
             torch.save(checkpoint, checkpoint_path)
             logging.info('Model saved to {}'.format(checkpoint_path))
         
-        # # Reduce learning rate
-        # if iteration % reduce_iteration == 0 and iteration > 0:
-        #     for param_group in optimizer.param_groups:
-        #         param_group['lr'] *= 0.9
+        # Reduce learning rate
+        if iteration % reduce_iteration == 0 and iteration > 0:
+             for param_group in optimizer.param_groups:
+                 param_group['lr'] *= 0.9
         
         # Move data to device
         for key in batch_data_dict.keys():
@@ -316,7 +316,7 @@ def train(args):
         
         losses.append(loss.item())
 
-        if iteration % 100 == 0:
+        if iteration % 1000 == 0:
             #print(loss, iteration, "LOSS")
             axs[0].plot(losses)
             axs[0].set_yscale('log')
@@ -347,6 +347,10 @@ def train(args):
             axs[6].set_xlabel("train_reg_offset")  
             
             plt.savefig('/local/CPSC532s_Results/Attention_Gru/Attention_Gru.png')
+            fileData = open("/local/CPSC532s_Results/Attention_Gru/AttentionGru.txt","a+") 
+            fileData.writelines([str(loss.item()), " ", str(iteration)])
+            fileData.write("\n")
+            fileData.close()
             #plt.show()
         
         if iteration % 100 == 0:
@@ -357,7 +361,7 @@ def train(args):
             optimizer.zero_grad()
         
         # Stop learning
-        if iteration == early_stop:
+        if iteration == 500000: #early_stop:
             break
 
         iteration += 1
