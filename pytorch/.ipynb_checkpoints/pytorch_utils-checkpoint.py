@@ -57,7 +57,7 @@ def forward_dataloader(model, dataloader, batch_size, return_target=True):
         for i in range(len(batch_data_dict['feature'])):
           feature = batch_data_dict['feature'][i]
           features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
-          features_batch = torch.cat((features_batch.float(), torch.from_numpy(features[0]).float()))
+          features_batch = torch.cat((features_batch, torch.from_numpy(features[0])))
         
         batch_feature = move_data_to_device(features_batch.float(), device)
 

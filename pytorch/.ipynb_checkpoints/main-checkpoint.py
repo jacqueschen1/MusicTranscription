@@ -28,11 +28,10 @@ from evaluate import SegmentEvaluator
 import config
 import wave
 
-from IPython import display
 
 def train(args):
     """Train a piano transcription system.
-
+    
     Args:
       workspace: str, directory of your workspace
       model_type: str, e.g. 'Regressonset_regressoffset_frame_velocity_CRNN'
@@ -46,20 +45,15 @@ def train(args):
       device: 'cuda' | 'cpu'
       mini_data: bool
     """
-    axs=[]
-    f = plt.figure(figsize=(10,10))
-    axs.append(f.add_subplot(2,1,1))
-    axs.append(f.add_subplot(2,1,2))
-    losses = []
-    val_loss = []
-    
+    howManyNan = 0
     # Arugments & parameters
     workspace = args.workspace
     model_type = args.model_type
     loss_type = args.loss_type
     augmentation = args.augmentation
     max_note_shift = args.max_note_shift
-    batch_size = args.batch_size
+    batch_size = 6#args.batch_size
+    #print(args.batch_size, "BATCH SIZE !!!")
     learning_rate = args.learning_rate
     reduce_iteration = args.reduce_iteration
     resume_iteration = args.resume_iteration
@@ -206,17 +200,19 @@ def train(args):
 
     for batch_data_dict in train_loader:
 
-        # print("wave shape", batch_data_dict['feature'][0].shape)
-        # print(len(batch_data_dict['feature']))
+        #print("wave shape", batch_data_dict['feature'][0].shape)
+        #print(len(batch_data_dict['feature']))
         features_batch = torch.empty(0,256,384,2)
         for i in range(len(batch_data_dict['feature'])):
           feature = batch_data_dict['feature'][i]
-          # print(feature.shape)
+          #print(feature.shape)
           features = create_batches(feature[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
-          features_batch = torch.cat((features_batch.float(), torch.from_numpy(features[0]).float()))
-          # print(features_batch.shape)
+          #print(torch.from_numpy(features[0]).shape, " features 0")
+          #print(features_batch.shape, " features batch")
+          features_batch = torch.cat((torch.tensor(features_batch, dtype=torch.float64), torch.tensor(torch.from_numpy(features[0]), dtype=torch.float64)))
+          #print(features_batch.shape)
 
-        # print(features_batch.shape)
+        #print(features_batch.shape)
         # print(batch_data_dict['reg_onset_roll'].shape)
         # # print("frame_output ", output_dict['frame_output'].shape)
         # print(batch_data_dict['frame_roll'].shape)
@@ -232,33 +228,33 @@ def train(args):
         # break
         
         # Evaluation 
-        if iteration % 5000 == 0:# and iteration > 0:
-            logging.info('------------------------------------')
-            logging.info('Iteration: {}'.format(iteration))
+        # if iteration % 5000 == 0:# and iteration > 0:
+        #     logging.info('------------------------------------')
+        #     logging.info('Iteration: {}'.format(iteration))
 
-            train_fin_time = time.time()
+        #     train_fin_time = time.time()
 
-            evaluate_train_statistics = evaluator.evaluate(evaluate_train_loader)
-            validate_statistics = evaluator.evaluate(validate_loader)
-            test_statistics = evaluator.evaluate(test_loader)
+        #     evaluate_train_statistics = evaluator.evaluate(evaluate_train_loader)
+        #     validate_statistics = evaluator.evaluate(validate_loader)
+        #     test_statistics = evaluator.evaluate(test_loader)
 
-            logging.info('    Train statistics: {}'.format(evaluate_train_statistics))
-            logging.info('    Validation statistics: {}'.format(validate_statistics))
-            logging.info('    Test statistics: {}'.format(test_statistics))
+        #     logging.info('    Train statistics: {}'.format(evaluate_train_statistics))
+        #     logging.info('    Validation statistics: {}'.format(validate_statistics))
+        #     logging.info('    Test statistics: {}'.format(test_statistics))
 
-            statistics_container.append(iteration, evaluate_train_statistics, data_type='train')
-            statistics_container.append(iteration, validate_statistics, data_type='validation')
-            statistics_container.append(iteration, test_statistics, data_type='test')
-            statistics_container.dump()
+        #     statistics_container.append(iteration, evaluate_train_statistics, data_type='train')
+        #     statistics_container.append(iteration, validate_statistics, data_type='validation')
+        #     statistics_container.append(iteration, test_statistics, data_type='test')
+        #     statistics_container.dump()
 
-            train_time = train_fin_time - train_bgn_time
-            validate_time = time.time() - train_fin_time
+        #     train_time = train_fin_time - train_bgn_time
+        #     validate_time = time.time() - train_fin_time
 
-            logging.info(
-                'Train time: {:.3f} s, validate time: {:.3f} s'
-                ''.format(train_time, validate_time))
+        #     logging.info(
+        #         'Train time: {:.3f} s, validate time: {:.3f} s'
+        #         ''.format(train_time, validate_time))
 
-            train_bgn_time = time.time()
+        #     train_bgn_time = time.time()
         
         # Save model
         if iteration % 1000 == 0:
@@ -285,20 +281,129 @@ def train(args):
         
         model.train()
         batch_output_dict = model(features_batch)
-
+        #print(batch_output_dict, "DICTIONARY")
+        
         loss = loss_func(model, batch_output_dict, batch_data_dict)
 
-        # print(iteration, loss)
-
+        #print(iteration, loss)
+        #print("hello")
         # Backward
         loss.backward()
-
-        if iteration % 100 == 0:
-          print(loss, iteration, "LOSS")
+        #print(model)
+        '''
+        if iteration > 50:
+            for name, p in model.named_parameters():
+                #print(p.grad.norm(), name, "GRAD NORM!!!!!!!!!")
+                if p.requires_grad:
+                    print(name, p.grad.norm())
+        '''
+        isNan = False
         
-        #Images
+        for name, p in model.named_parameters():
+            #print(p.grad.norm(), name, "GRAD NORM!!!!!!!!!")
+            if p.requires_grad:
+                #print(name, p.grad.norm())
+                if torch.isnan(p.grad.norm()).any():
+                    isNan = True
+                    howManyNan = howManyNan + 1
+                    print("NAAAAAAAAAAAAAAAAAAAAAAAAANI!!!!!!!!!!!!!!??????????")
+                    print(howManyNan, "HOW MANY NAN!!!!!?")
+                    print(iteration)
+                    print(batch_data_dict["name"], " filename")
+                    break
         if iteration % 100 == 0:
-          print(loss, iteration, "LOSS")
+            print(loss, iteration, "LOSS !?")
+        '''
+        print(torch.max(model.module.frame_model.conv_block1.conv1.weight.grad), "MAXIMUM block1 conv1") 
+        print(torch.max(model.module.frame_model.conv_block1.conv2.weight.grad), "MAXIMUM block1 conv2")
+        
+        print(torch.max(model.module.frame_model.conv_block2.conv1.weight.grad), "MAXIMUM block2 conv1") 
+        print(torch.max(model.module.frame_model.conv_block2.conv2.weight.grad), "MAXIMUM block2 conv2")
+        
+        print(torch.max(model.module.frame_model.conv_block3.conv1.weight.grad), "MAXIMUM block3 conv1") 
+        print(torch.max(model.module.frame_model.conv_block3.conv2.weight.grad), "MAXIMUM block3 conv2")
+        
+        print(torch.max(model.module.frame_model.conv_block4.conv1.weight.grad), "MAXIMUM block4 conv1") 
+        print(torch.max(model.module.frame_model.conv_block4.conv2.weight.grad), "MAXIMUM block4 conv2")
+        
+        #################################################################################################
+        
+        print(torch.max(model.module.reg_onset_model.conv_block1.conv1.weight.grad), "MAXIMUM reg block1 conv1") 
+        print(torch.max(model.module.reg_onset_model.conv_block1.conv2.weight.grad), "MAXIMUM reg block1 conv2")
+        
+        print(torch.max(model.module.reg_onset_model.conv_block2.conv1.weight.grad), "MAXIMUM reg block2 conv1") 
+        print(torch.max(model.module.reg_onset_model.conv_block2.conv2.weight.grad), "MAXIMUM reg block2 conv2")
+        
+        print(torch.max(model.module.reg_onset_model.conv_block3.conv1.weight.grad), "MAXIMUM reg block3 conv1") 
+        print(torch.max(model.module.reg_onset_model.conv_block3.conv2.weight.grad), "MAXIMUM reg block3 conv2")
+        
+        print(torch.max(model.module.reg_onset_model.conv_block4.conv1.weight.grad), "MAXIMUM reg block4 conv1") 
+        print(torch.max(model.module.reg_onset_model.conv_block4.conv2.weight.grad), "MAXIMUM reg block4 conv2")
+        
+        #################################################################################################
+        
+        print(torch.max(model.module.reg_offset_model.conv_block1.conv1.weight.grad), "MAXIMUM off block1 conv1") 
+        print(torch.max(model.module.reg_offset_model.conv_block1.conv2.weight.grad), "MAXIMUM off block1 conv2")
+        
+        print(torch.max(model.module.reg_offset_model.conv_block2.conv1.weight.grad), "MAXIMUM off block2 conv1") 
+        print(torch.max(model.module.reg_offset_model.conv_block2.conv2.weight.grad), "MAXIMUM off block2 conv2")
+        
+        print(torch.max(model.module.reg_offset_model.conv_block3.conv1.weight.grad), "MAXIMUM off block3 conv1") 
+        print(torch.max(model.module.reg_offset_model.conv_block3.conv2.weight.grad), "MAXIMUM off block3 conv2")
+        
+        print(torch.max(model.module.reg_offset_model.conv_block4.conv1.weight.grad), "MAXIMUM off block4 conv1") 
+        print(torch.max(model.module.reg_offset_model.conv_block4.conv2.weight.grad), "MAXIMUM off block4 conv2")
+        
+        #################################################################################################
+        '''
+        
+        '''
+        print(torch.max(model.module.velocity_model.conv_block1.conv1.weight.grad), "MAXIMUM vel block1 conv1") 
+        print(torch.max(model.module.velocity_model.conv_block1.conv2.weight.grad), "MAXIMUM vel block1 conv2")
+        
+        print(torch.max(model.module.velocity_model.conv_block2.conv1.weight.grad), "MAXIMUM vel block2 conv1") 
+        print(torch.max(model.module.velocity_model.conv_block2.conv2.weight.grad), "MAXIMUM vel block2 conv2")
+        
+        print(torch.max(model.module.velocity_model.conv_block3.conv1.weight.grad), "MAXIMUM vel block3 conv1") 
+        print(torch.max(model.module.velocity_model.conv_block3.conv2.weight.grad), "MAXIMUM vel block3 conv2")
+        
+        print(torch.max(model.module.velocity_model.conv_block4.conv1.weight.grad), "MAXIMUM vel block4 conv1") 
+        print(torch.max(model.module.velocity_model.conv_block4.conv2.weight.grad), "MAXIMUM vel block4 conv2")
+        
+        print(torch.max(model.module.velocity_model.fc5.weight.grad), "MAXIMUM vel fc5")
+              
+        print(torch.max(model.module.velocity_model.attn.attn.q_dense.weight.grad), "MAXIMUM q dense")
+        
+        print(torch.max(model.module.velocity_model.attn.attn.k_dense.weight.grad), "MAXIMUM k dense")
+        
+        print(torch.max(model.module.velocity_model.attn.attn.v_dense.weight.grad), "MAXIMUM v dense")
+        
+        print(torch.max(model.module.velocity_model.attn.attn.output_dense.weight.grad), "MAXIMUM output dense")
+        
+        print(torch.max(model.module.velocity_model.attn.ffn[0].weight.grad), "MAXIMUM 0 dense")
+        
+        #print(torch.max(model.module.velocity_model.attn.ffn[1].weight.grad), "MAXIMUM 1 dense")
+        
+        print(torch.max(model.module.velocity_model.attn.ffn[2].weight.grad), "MAXIMUM 2 dense")
+        
+        print(torch.max(model.module.velocity_model.fc.weight.grad), "MAXIMUM fc")
+        
+        #####################
+        for i in range(len((model.module.reg_onset_gru.all_weights[0]))):
+            print(torch.max(model.module.reg_onset_gru.all_weights[0][i].grad), "MAXIMUM reg 0")
+        for i in range(len((model.module.reg_onset_gru.all_weights[1]))):
+            print(torch.max(model.module.reg_onset_gru.all_weights[1][i].grad), "MAXIMUM reg 1")
+        print(torch.max(model.module.reg_onset_fc.weight.grad), "MAXIMUM fc")
+        for i in range(len(model.module.frame_gru.all_weights[0])):
+            print(torch.max(model.module.frame_gru.all_weights[0][i].grad), "MAXIMUM gru 0")
+        for i in range(len(model.module.frame_gru.all_weights[1])):
+            print(torch.max(model.module.frame_gru.all_weights[1][i].grad), "MAXIMUM gru 1")
+        print(torch.max(model.module.frame_fc.weight.grad), "MAXIMUM fc")
+        '''
+        #print(batch_data_dict['velocity_roll'], "DATA DICT")
+        #print(batch_output_dict['velocity_output'], "OUTPUT DICT")
+        
+        #torch.nn.utils.clip_grad_norm_(model.parameters(), 0.01 , norm_type=2)
         
         if iteration % 2 != 0:
             if not isNan:
