@@ -139,6 +139,7 @@ class AcousticModelCRnn8Dropout(nn.Module):
         init_bn(self.bn5)
         init_gru(self.gru)
         init_layer(self.fc)
+        init_bn(self.bn2d)
 
 
     def forward(self, input):
