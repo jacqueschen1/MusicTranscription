@@ -921,7 +921,7 @@ class RegressionPostProcessor(object):
                 onset_shift_output=output_dict['onset_shift_output'][:, piano_note], 
                 offset_output=output_dict['offset_output'][:, piano_note], 
                 offset_shift_output=output_dict['offset_shift_output'][:, piano_note], 
-                velocity_output=output_dict['velocity_output'][:, piano_note], 
+                # velocity_output=100, 
                 frame_threshold=self.frame_threshold)
             
             est_tuples += est_tuples_per_note
@@ -1004,7 +1004,7 @@ class RegressionPostProcessor(object):
                 'onset_time': est_on_off_note_vels[i][0], 
                 'offset_time': est_on_off_note_vels[i][1], 
                 'midi_note': int(est_on_off_note_vels[i][2]), 
-                'velocity': int(est_on_off_note_vels[i][3] * self.velocity_scale)})
+                'velocity': 100})
 
         return midi_events
 
@@ -1219,7 +1219,7 @@ class OnsetsFramesPostProcessor(object):
                 frame_output=output_dict['frame_output'][:, piano_note], 
                 onset_output=output_dict['onset_output'][:, piano_note], 
                 offset_output=output_dict['offset_output'][:, piano_note], 
-                velocity_output=output_dict['velocity_output'][:, piano_note], 
+                # velocity_output=output_dict['velocity_output'][:, piano_note], 
                 threshold=frame_threshold)
 
             est_tuples += est_tuples_per_note

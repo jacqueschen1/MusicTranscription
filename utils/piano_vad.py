@@ -2,7 +2,7 @@ import numpy as np
 
 
 def note_detection_with_onset_offset_regress(frame_output, onset_output, 
-    onset_shift_output, offset_output, offset_shift_output, velocity_output,
+    onset_shift_output, offset_output, offset_shift_output,
     frame_threshold):
     """Process prediction matrices to note events information.
     First, detect onsets with onset outputs. Then, detect offsets
@@ -37,7 +37,7 @@ def note_detection_with_onset_offset_regress(frame_output, onset_output,
                 consecutive notes being played."""
                 fin = max(i - 1, 0)
                 output_tuples.append([bgn, fin, onset_shift_output[bgn], 
-                    0, velocity_output[bgn]])
+                    0, 1])
                 frame_disappear, offset_occur = None, None
             bgn = i
 
@@ -59,14 +59,14 @@ def note_detection_with_onset_offset_regress(frame_output, onset_output,
                     """bgn --- offset_occur --------- frame_disappear"""
                     fin = frame_disappear
                 output_tuples.append([bgn, fin, onset_shift_output[bgn], 
-                    offset_shift_output[fin], velocity_output[bgn]])
+                    offset_shift_output[fin], 1])
                 bgn, frame_disappear, offset_occur = None, None, None
 
             if bgn and (i - bgn >= 600 or i == onset_output.shape[0] - 1):
                 """Offset not detected"""
                 fin = i
                 output_tuples.append([bgn, fin, onset_shift_output[bgn], 
-                    offset_shift_output[fin], velocity_output[bgn]])
+                    offset_shift_output[fin], 1])
                 bgn, frame_disappear, offset_occur = None, None, None
 
     # Sort pairs by onsets
@@ -133,8 +133,7 @@ def pedal_detection_with_onset_offset_regress(frame_output, offset_output,
 
 
 ###### Google's onsets and frames post processing. Only used for comparison ######
-def onsets_frames_note_detection(frame_output, onset_output, offset_output, 
-    velocity_output, threshold):
+def onsets_frames_note_detection(frame_output, onset_output, offset_output, threshold):
     """Process pedal prediction matrices to note events information. onset_ouput 
     is used to detect the presence of notes. frame_output is used to detect the 
     offset of notes.
@@ -157,12 +156,12 @@ def onsets_frames_note_detection(frame_output, onset_output, offset_output,
         # Use onset_output is used to detect the presence of notes
         if onset_output[i] > threshold:
             if loct:
-                output_tuples.append([loct, i, velocity_output[loct]])
+                output_tuples.append([loct, i, 1])
             loct = i
         if loct and i > loct:
             # Use frame_output is used to detect the offset of notes
             if frame_output[i] <= threshold:
-                output_tuples.append([loct, i, velocity_output[loct]])
+                output_tuples.append([loct, i, 1])
                 loct = None
 
     output_tuples.sort(key=lambda pair: pair[0])

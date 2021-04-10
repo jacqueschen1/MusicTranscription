@@ -295,9 +295,9 @@ def train(args):
             logging.info('Model saved to {}'.format(checkpoint_path))
         
         # # Reduce learning rate
-        # if iteration % reduce_iteration == 0 and iteration > 0:
-        #     for param_group in optimizer.param_groups:
-        #         param_group['lr'] *= 0.9
+        if iteration % reduce_iteration == 0 and iteration > 0:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] *= 0.9
         
         # Move data to device
         for key in batch_data_dict.keys():
@@ -357,8 +357,8 @@ def train(args):
             optimizer.zero_grad()
         
         # Stop learning
-        if iteration == early_stop:
-            break
+        # if iteration == early_stop:
+        #     break
 
         iteration += 1
         # print("iteration", iteration)

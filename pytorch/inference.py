@@ -9,6 +9,7 @@ import time
 import librosa
 import logging
 import matplotlib.pyplot as plt
+from cfp import feature_extraction, create_batches
 
 import torch
  
@@ -63,7 +64,7 @@ class PianoTranscription(object):
         else:
             print('Using CPU.')
 
-    def transcribe(self, audio, midi_path):
+    def transcribe(self, audio_path, midi_path):
         """Transcribe an audio recording.
 
         Args:
@@ -75,26 +76,57 @@ class PianoTranscription(object):
             'est_pedal_events': ...}
         """
 
-        audio = audio[None, :]  # (1, audio_samples)
+        # audio = audio[None, :]  # (1, audio_samples)
 
-        # Pad audio to be evenly divided by segment_samples
-        audio_len = audio.shape[1]
-        pad_len = int(np.ceil(audio_len / self.segment_samples)) \
-            * self.segment_samples - audio_len
+        # # Pad audio to be evenly divided by segment_samples
+        # audio_len = audio.shape[1]
+        # pad_len = int(np.ceil(audio_len / self.segment_samples)) \
+        #     * self.segment_samples - audio_len
 
-        audio = np.concatenate((audio, np.zeros((1, pad_len))), axis=1)
+        # audio = np.concatenate((audio, np.zeros((1, pad_len))), axis=1)
+        print(self.segment_samples)
+        Z, tfrL0, tfrLF, tfrLQ, t, cenf, f = feature_extraction(audio_path)
+        feature = np.array([Z, tfrL0, tfrLF, tfrLQ])
+        feature = np.transpose(feature, axes=(2, 1, 0))
+
+        print("feature", feature.shape)
+        segment_seconds = 5.1
+        frames_per_second = 50
+        length = int(round(segment_seconds * frames_per_second))
+        batch = torch.empty(0,256,384,2)
+
+        pointer = 0
+        while pointer + length <= feature.shape[0]:
+          feat = feature[pointer : pointer + length]
+          print(feat.shape)
+          mod_feature = create_batches(feat[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
+          print(len(mod_feature))
+          print(mod_feature[0].shape)
+          batch = torch.cat((batch.float(), torch.from_numpy(mod_feature[0]).float()))
+          pointer += length
+        
+        print(len(batch))
+        print(batch[0].shape)
+
+        
+
 
         # Enframe to segments
-        segments = self.enframe(audio, self.segment_samples)
+        # segments = self.enframe(audio, self.segment_samples)
+        # print(segments.shape)
         """(N, segment_samples)"""
 
+
+
         # Forward
-        output_dict = forward(self.model, segments, batch_size=1)
+        output_dict = forward(self.model, batch, batch_size=1)
         """{'reg_onset_output': (N, segment_frames, classes_num), ...}"""
+
+        print(output_dict["frame_output"].shape)
 
         # Deframe to original length
         for key in output_dict.keys():
-            output_dict[key] = self.deframe(output_dict[key])[0 : audio_len]
+            output_dict[key] = self.deframe(output_dict[key])
         """output_dict: {
           'reg_onset_output': (segment_frames, classes_num), 
           'reg_offset_output': (segment_frames, classes_num), 
@@ -170,7 +202,7 @@ class PianoTranscription(object):
             return x[0]
 
         else:
-            x = x[:, 0 : -1, :]
+            # x = x[:, 0 : -1, :]
             """Remove an extra frame in the end of each segment caused by the
             'center=True' argument when calculating spectrogram."""
             (N, segment_samples, classes_num) = x.shape
@@ -214,7 +246,7 @@ def inference(args):
     create_folder(os.path.dirname(midi_path))
  
     # Load audio
-    (audio, _) = load_audio(audio_path, sr=sample_rate, mono=True)
+    # (audio, _) = load_audio(audio_path, sr=sample_rate, mono=True)
 
     # Transcriptor
     transcriptor = PianoTranscription(model_type, device=device, 
@@ -223,7 +255,7 @@ def inference(args):
 
     # Transcribe and write out to MIDI file
     transcribe_time = time.time()
-    transcribed_dict = transcriptor.transcribe(audio, midi_path)
+    transcribed_dict = transcriptor.transcribe(audio_path, midi_path)
     print('Transcribe time: {:.3f} s'.format(time.time() - transcribe_time))
 
     # Visualize for debug
