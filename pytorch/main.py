@@ -30,6 +30,9 @@ import wave
 
 from IPython import display
 
+import matplotlib
+matplotlib.use('Agg')
+
 def train(args):
     """Train a piano transcription system.
 
@@ -356,12 +359,12 @@ def train(args):
         if iteration % 100 == 0:
             print(loss, iteration, "LOSS")
         
-        if iteration % 2 != 0:
+        if iteration % 3 != 0:
             optimizer.step()
             optimizer.zero_grad()
         
         # Stop learning
-        if iteration == 50000: #early_stop:
+        if iteration == 75000: #early_stop:
             break
 
         iteration += 1
