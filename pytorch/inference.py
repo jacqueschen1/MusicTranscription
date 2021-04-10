@@ -93,6 +93,7 @@ class PianoTranscription(object):
         segment_seconds = 5.1
         frames_per_second = 50
         length = int(round(segment_seconds * frames_per_second))
+        print("length", length)
         batch = torch.empty(0,256,384,2)
 
         pointer = 0
@@ -103,7 +104,7 @@ class PianoTranscription(object):
           print(len(mod_feature))
           print(mod_feature[0].shape)
           batch = torch.cat((batch.float(), torch.from_numpy(mod_feature[0]).float()))
-          pointer += length
+          pointer += length // 2
         
         print(len(batch))
         print(batch[0].shape)
@@ -242,11 +243,12 @@ def inference(args):
     """Split audio to multiple 10-second segments for inference"""
 
     # Paths
-    midi_path = 'results/{}.mid'.format(get_filename(audio_path))
+    midi_path = 'results_{}/{}.mid'.format(checkpoint_path.split("/")[-1], get_filename(audio_path))
+    print(midi_path)
     create_folder(os.path.dirname(midi_path))
  
     # Load audio
-    # (audio, _) = load_audio(audio_path, sr=sample_rate, mono=True)
+    (audio, _) = load_audio(audio_path, sr=sample_rate, mono=True)
 
     # Transcriptor
     transcriptor = PianoTranscription(model_type, device=device, 
@@ -259,7 +261,7 @@ def inference(args):
     print('Transcribe time: {:.3f} s'.format(time.time() - transcribe_time))
 
     # Visualize for debug
-    plot = False
+    plot = True
     if plot:
         output_dict = transcribed_dict['output_dict']
         fig, axs = plt.subplots(5, 1, figsize=(15, 8), sharex=True)
@@ -268,16 +270,13 @@ def inference(args):
         axs[1].matshow(output_dict['frame_output'].T, origin='lower', aspect='auto', cmap='jet')
         axs[2].matshow(output_dict['reg_onset_output'].T, origin='lower', aspect='auto', cmap='jet')
         axs[3].matshow(output_dict['reg_offset_output'].T, origin='lower', aspect='auto', cmap='jet')
-        axs[4].plot(output_dict['pedal_frame_output'])
         axs[0].set_xlim(0, len(output_dict['frame_output']))
-        axs[4].set_xlabel('Frames')
         axs[0].set_title('Log mel spectrogram')
         axs[1].set_title('frame_output')
         axs[2].set_title('reg_onset_output')
         axs[3].set_title('reg_offset_output')
-        axs[4].set_title('pedal_frame_output')
         plt.tight_layout(0, .05, 0)
-        fig_path = '_zz.pdf'.format(get_filename(audio_path))
+        fig_path = 'results_{}/{}.pdf'.format(checkpoint_path.split("/")[-1], get_filename(audio_path))
         plt.savefig(fig_path)
         print('Plot to {}'.format(fig_path))
     
