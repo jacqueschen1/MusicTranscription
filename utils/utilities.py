@@ -11,6 +11,8 @@ import datetime
 import collections
 import pickle
 from mido import MidiFile
+# import ipdb
+
 
 from piano_vad import (note_detection_with_onset_offset_regress, 
     pedal_detection_with_onset_offset_regress, onsets_frames_note_detection, onsets_frames_pedal_detection)
@@ -912,7 +914,8 @@ class RegressionPostProcessor(object):
         est_tuples = []
         est_midi_notes = []
         classes_num = output_dict['frame_output'].shape[-1]
- 
+        # ipdb.set_trace()
+
         for piano_note in range(classes_num):
             """Detect piano notes"""
             est_tuples_per_note = note_detection_with_onset_offset_regress(

@@ -12,7 +12,8 @@ import h5py
 import pickle 
 from sklearn import metrics
 from concurrent.futures import ProcessPoolExecutor
- 
+# import ipdb
+
 from utilities import (create_folder, get_filename, traverse_folder, 
     int16_to_float32, note_to_freq, TargetProcessor, RegressionPostProcessor, 
     OnsetsFramesPostProcessor)
@@ -200,11 +201,16 @@ class ScoreCalculator(object):
 
         # Load pre-calculated system outputs and ground truths
         prob_path = os.path.join(self.probs_dir, '{}.pkl'.format(get_filename(hdf5_path)))
+        # if not os.path.isfile(prob_path):
+        #   return
         total_dict = pickle.load(open(prob_path, 'rb'))
 
         ref_on_off_pairs = total_dict['ref_on_off_pairs']
         ref_midi_notes = total_dict['ref_midi_notes']
         output_dict = total_dict
+
+        # print("outputdict", output_dict['frame_output'].shape)
+        # print("outputdict2", output_dict['reg_onset_output'].shape)
 
         # Calculate frame metric
         if self.evaluate_frame:
@@ -215,10 +221,16 @@ class ScoreCalculator(object):
             y_pred = y_pred[0 : y_true.shape[0], :]
             y_true = y_true[0 : y_pred.shape[0], :]
 
+            print(y_pred.shape)
+            print(y_true.shape)
+
             tmp = metrics.precision_recall_fscore_support(y_true.flatten(), y_pred.flatten())
+            print("tmp", tmp)
+            print("precision", tmp[0][1])
             return_dict['frame_precision'] = tmp[0][1]
             return_dict['frame_recall'] = tmp[1][1]
             return_dict['frame_f1'] = tmp[2][1]
+        # print("helloooo")
 
         # Post processor
         if self.post_processor_type == 'regression':
@@ -231,7 +243,7 @@ class ScoreCalculator(object):
         elif self.post_processor_type == 'onsets_frames':
             post_processor = OnsetsFramesPostProcessor(self.frames_per_second, 
                 classes_num=self.classes_num)
-
+        # ipdb.set_trace()
         # Post process piano note outputs to piano note and pedal events information
         (est_on_off_note_vels, est_pedal_on_offs) = \
             post_processor.output_dict_to_note_pedal_arrays(output_dict)
@@ -242,6 +254,7 @@ class ScoreCalculator(object):
         est_on_offs = est_on_off_note_vels[:, 0 : 2]
         est_midi_notes = est_on_off_note_vels[:, 2]
         # est_vels = est_on_off_note_vels[:, 3] * self.velocity_scale
+        # print("here")
 
         # Calculate note metrics
         if self.velocity:
@@ -342,7 +355,7 @@ def calculate_metrics(args, thresholds=None):
     score_calculator = ScoreCalculator(hdf5s_dir, probs_dir, split=split, post_processor_type=post_processor_type)
 
     if not thresholds:
-        thresholds = [0.3, 0.3, 0.3]
+        thresholds = [0.3, 0.3, 0.1]
     else:
         pass
 
