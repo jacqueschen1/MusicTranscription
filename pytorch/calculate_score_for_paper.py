@@ -77,7 +77,7 @@ def infer_prob(args):
                 n += 1
 
                 # Load audio                
-                audio = int16_to_float32(hf['waveform'][:])
+                audio = int16_to_float32(hf['feature'][:])
                 midi_events = [e.decode() for e in hf['midi_event'][:]]
                 midi_events_time = hf['midi_event_time'][:]
         
@@ -95,10 +95,10 @@ def infer_prob(args):
 
                 ref_on_off_pairs = np.array([[event['onset_time'], event['offset_time']] for event in note_events])
                 ref_midi_notes = np.array([event['midi_note'] for event in note_events])
-                ref_velocity = np.array([event['velocity'] for event in note_events])
+                # ref_velocity = np.array([event['velocity'] for event in note_events])
 
                 # Transcribe
-                transcribed_dict = transcriptor.transcribe(audio, midi_path=None)
+                transcribed_dict = transcriptor.transcribe(audio, midi_path=None, processed=True)
                 output_dict = transcribed_dict['output_dict']
 
                 # Pack probabilites to dump
@@ -106,7 +106,7 @@ def infer_prob(args):
                 total_dict['frame_roll'] = target_dict['frame_roll']
                 total_dict['ref_on_off_pairs'] = ref_on_off_pairs
                 total_dict['ref_midi_notes'] = ref_midi_notes
-                total_dict['ref_velocity'] = ref_velocity
+                # total_dict['ref_velocity'] = ref_velocity
 
                 if 'pedal_frame_output' in output_dict.keys():
                     total_dict['ref_pedal_on_off_pairs'] = \
@@ -128,8 +128,8 @@ class ScoreCalculator(object):
         self.frames_per_second = config.frames_per_second
         self.classes_num = config.classes_num
         self.velocity_scale = config.velocity_scale
-        self.velocity = True  # True | False
-        self.pedal = True
+        self.velocity = False  # True | False
+        self.pedal = False
 
         self.evaluate_frame = True
         self.onset_tolerance = 0.05
@@ -241,7 +241,7 @@ class ScoreCalculator(object):
         # # Detect piano notes from output_dict
         est_on_offs = est_on_off_note_vels[:, 0 : 2]
         est_midi_notes = est_on_off_note_vels[:, 2]
-        est_vels = est_on_off_note_vels[:, 3] * self.velocity_scale
+        # est_vels = est_on_off_note_vels[:, 3] * self.velocity_scale
 
         # Calculate note metrics
         if self.velocity:

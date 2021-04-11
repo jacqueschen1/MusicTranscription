@@ -64,7 +64,7 @@ class PianoTranscription(object):
         else:
             print('Using CPU.')
 
-    def transcribe(self, audio_path, midi_path):
+    def transcribe(self, audio_path, midi_path, processed=False):
         """Transcribe an audio recording.
 
         Args:
@@ -84,30 +84,34 @@ class PianoTranscription(object):
         #     * self.segment_samples - audio_len
 
         # audio = np.concatenate((audio, np.zeros((1, pad_len))), axis=1)
-        print(self.segment_samples)
-        Z, tfrL0, tfrLF, tfrLQ, t, cenf, f = feature_extraction(audio_path)
-        feature = np.array([Z, tfrL0, tfrLF, tfrLQ])
-        feature = np.transpose(feature, axes=(2, 1, 0))
+        feature = None
+        if processed:
+            feature = audio_path
+        else:
+            # print(self.segment_samples)
+            Z, tfrL0, tfrLF, tfrLQ, t, cenf, f = feature_extraction(audio_path)
+            feature = np.array([Z, tfrL0, tfrLF, tfrLQ])
+            feature = np.transpose(feature, axes=(2, 1, 0))
 
-        print("feature", feature.shape)
+        # print("feature", feature.shape)
         segment_seconds = 5.1
         frames_per_second = 50
         length = int(round(segment_seconds * frames_per_second))
-        print("length", length)
+        # print("length", length)
         batch = torch.empty(0,256,384,2)
 
         pointer = 0
         while pointer + length <= feature.shape[0]:
           feat = feature[pointer : pointer + length]
-          print(feat.shape)
+        #   print(feat.shape)
           mod_feature = create_batches(feat[:,:,[1, 3]], b_size=1, timesteps=256, feature_num=384)
-          print(len(mod_feature))
-          print(mod_feature[0].shape)
+        #   print(len(mod_feature))
+        #   print(mod_feature[0].shape)
           batch = torch.cat((batch.float(), torch.from_numpy(mod_feature[0]).float()))
           pointer += length // 2
         
-        print(len(batch))
-        print(batch[0].shape)
+        # print(len(batch))
+        # print(batch[0].shape)
 
         
 
@@ -123,7 +127,7 @@ class PianoTranscription(object):
         output_dict = forward(self.model, batch, batch_size=1)
         """{'reg_onset_output': (N, segment_frames, classes_num), ...}"""
 
-        print(output_dict["frame_output"].shape)
+        # print(output_dict["frame_output"].shape)
 
         # Deframe to original length
         for key in output_dict.keys():
