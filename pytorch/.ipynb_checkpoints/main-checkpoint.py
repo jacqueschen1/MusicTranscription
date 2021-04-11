@@ -30,6 +30,9 @@ import wave
 
 from IPython import display
 
+import matplotlib
+matplotlib.use('Agg')
+
 def train(args):
     """Train a piano transcription system.
 
@@ -194,7 +197,7 @@ def train(args):
     if resume_iteration > 0:
         resume_checkpoint_path = os.path.join(workspace, 'checkpoints', filename, 
             model_type, 'loss_type={}'.format(loss_type), 
-            'augmentation={}'.format(augmentation), 'batch_size={}'.format(batch_size), 
+            'augmentation={}'.format(augmentation),'max_note_shift=0', 'batch_size={}'.format(batch_size), 
                 '{}_iterations.pth'.format(resume_iteration))
 
         logging.info('Loading checkpoint {}'.format(resume_checkpoint_path))
@@ -282,7 +285,8 @@ def train(args):
             train_reg_offset.append(evaluate_train_statistics['reg_offset_mae'])
         
         # Save model
-        if iteration % 10000 == 0:
+        #if iteration % 10000 == 0:
+        if iteration % 5000 == 0:
             checkpoint = {
                 'iteration': iteration, 
                 'model': model.module.state_dict(), 
@@ -346,8 +350,8 @@ def train(args):
             axs[6].set_yscale('log')
             axs[6].set_xlabel("train_reg_offset")  
             
-            plt.savefig('/local/CPSC532s_Results/Attention_Gru/Attention_Gru.png')
-            fileData = open("/local/CPSC532s_Results/Attention_Gru/AttentionGru.txt","a+") 
+            plt.savefig('/local/CPSC532s_Results/Double_Attention/Double_Attention.png')
+            fileData = open("/local/CPSC532s_Results/Double_Attention/Double_Attention.txt","a+") 
             fileData.writelines([str(loss.item()), " ", str(iteration)])
             fileData.write("\n")
             fileData.close()
@@ -356,12 +360,12 @@ def train(args):
         if iteration % 100 == 0:
             print(loss, iteration, "LOSS")
         
-        if iteration % 2 != 0:
+        if iteration % 3 != 0:
             optimizer.step()
             optimizer.zero_grad()
         
         # Stop learning
-        if iteration == 500000: #early_stop:
+        if iteration == 75000: #early_stop:
             break
 
         iteration += 1
