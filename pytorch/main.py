@@ -194,7 +194,7 @@ def train(args):
     if resume_iteration > 0:
         resume_checkpoint_path = os.path.join(workspace, 'checkpoints', filename, 
             model_type, 'loss_type={}'.format(loss_type), 
-            'augmentation={}'.format(augmentation), 'batch_size={}'.format(batch_size), 
+            'augmentation={}'.format(augmentation),'max_note_shift=0', 'batch_size={}_single_attention'.format(batch_size),
                 '{}_iterations.pth'.format(resume_iteration))
 
         logging.info('Loading checkpoint {}'.format(resume_checkpoint_path))
@@ -361,7 +361,7 @@ def train(args):
             optimizer.zero_grad()
         
         # Stop learning
-        if iteration == 50000: #early_stop:
+        if iteration == 250000: #early_stop:
             break
 
         iteration += 1
