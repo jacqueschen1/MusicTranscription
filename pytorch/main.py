@@ -346,8 +346,8 @@ def train(args):
             axs[6].set_yscale('log')
             axs[6].set_xlabel("train_reg_offset")  
             
-            plt.savefig('/local/CPSC532s_Results/Attention/Attention.png')
-            fileData = open("/local/CPSC532s_Results/Attention/Attention.txt","a+") 
+            plt.savefig('/local/CPSC532s_Results/cfp_original/cfp_original.png')
+            fileData = open("/local/CPSC532s_Results/cfp_original/cfp_original.txt","a+") 
             fileData.writelines([str(loss.item()), " ", str(iteration)])
             fileData.write("\n")
             fileData.close()
@@ -361,7 +361,7 @@ def train(args):
             optimizer.zero_grad()
         
         # Stop learning
-        if iteration == 250000: #early_stop:
+        if iteration == early_stop:
             break
 
         iteration += 1

@@ -122,13 +122,13 @@ class AcousticModelCRnn8Dropout(nn.Module):
         hyparams['attn_type'] = "local_1d"
         hyparams['filter_size'] = 128
         hyparams['dropout'] = 0.3
-        self.attn = DecoderLayer(hyparams)
+        #self.attn = DecoderLayer(hyparams)
 
-        #self.gru = nn.GRU(input_size=768, hidden_size=256, num_layers=1, 
-        #    bias=True, batch_first=True, dropout=0., bidirectional=True)
+        self.gru = nn.GRU(input_size=768, hidden_size=256, num_layers=1, 
+            bias=True, batch_first=True, dropout=0., bidirectional=True)
 
-        #self.fc = nn.Linear(512, classes_num, bias=True)
-        self.fc = nn.Linear(768, classes_num, bias=True)
+        self.fc = nn.Linear(512, classes_num, bias=True)
+        #self.fc = nn.Linear(768, classes_num, bias=True)
         
         self.init_weight()
 
@@ -169,7 +169,7 @@ class AcousticModelCRnn8Dropout(nn.Module):
         
         # (x, _) = self.gru(x)
         # print("post fc", x.shape)
-        x = self.attn(x)
+        #x = self.attn(x)
         # print("post attn, ", x.shape)
         x = x.transpose(1,2)
         x = torch.reshape(x, (x.shape[0], x.shape[1], 256, 24))
@@ -179,7 +179,7 @@ class AcousticModelCRnn8Dropout(nn.Module):
         x = F.relu(self.bn5(self.fc5(x).transpose(1, 2)).transpose(1, 2))
         x = F.dropout(x, p=0.5, training=self.training, inplace=False)
         # print("pre gru ", x.shape)
-        #(x, _) = self.gru(x)
+        (x, _) = self.gru(x)
         # print("post gru ", x.shape)
         #x = F.dropout(x, p=0.5, training=self.training, inplace=False)
         output = torch.sigmoid(self.fc(x))
