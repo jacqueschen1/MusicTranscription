@@ -1,2 +1,1 @@
-# MusicTranscription
-Research Project for CPSC 532S
+Outdated: see https://github.com/jacqueschen1/multi_instrumental_transcription
